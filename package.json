@@ -4,7 +4,7 @@
   "description": " The test backend for 8ai chatbot",
   "main": "src/index.ts",
   "scripts": {
-    "start": "node dist/app.js",
+    "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "lint": "eslint --fix src test",
