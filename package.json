@@ -8,12 +8,14 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "lint": "eslint --fix src test",
-    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "James Bayly",
   "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "@apollo/client": "^3.8.8",
     "cors": "^2.8.5",
