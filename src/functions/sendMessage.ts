@@ -7,6 +7,7 @@ import {
 import { MessageRequest } from "../models/MessageRequest";
 import OpenAI from "openai";
 import { TextContentBlock } from "openai/resources/beta/threads/messages/messages";
+import { MessageResponse } from "../models/MessageResponse";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -43,9 +44,13 @@ export async function sendMessage(
         const content = messagesResponse.data[0].content.find(
           (c) => c.type === "text"
         ) as TextContentBlock;
+        const response: MessageResponse = {
+          thread_id,
+          message: content.text.value,
+        };
         return {
           status: 200,
-          body: content.text.value,
+          jsonBody: response,
         };
       } else if (run.status === "failed") {
         context.error(run.last_error);
