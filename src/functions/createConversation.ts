@@ -5,19 +5,21 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import OpenAI from "openai";
-import { ThreadResponse } from "../models/ThreadResponse";
+import { ConversationsResponse } from "../models/ConversationsResponse";
 
-export async function getThread(
+export async function createConversation(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    context.log(`Creating new thread`);
+    context.log(`Creating new conversation`);
     const openai = new OpenAI({
       apiKey: "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",
     });
     const thread = await openai.beta.threads.create();
-    const response: ThreadResponse = { ...thread };
+    const response: ConversationsResponse = new ConversationsResponse(
+      thread.id
+    );
     return { status: 200, jsonBody: response };
   } catch (e) {
     console.error(e);
@@ -30,9 +32,9 @@ export async function getThread(
   }
 }
 
-app.http("getThread", {
+app.http("createConversation", {
   methods: ["GET"],
-  route: "chat",
+  route: "chat/new",
   authLevel: "anonymous",
-  handler: getThread,
+  handler: createConversation,
 });

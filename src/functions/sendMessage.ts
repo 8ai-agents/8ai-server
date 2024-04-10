@@ -13,16 +13,17 @@ export async function sendMessage(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  context.log(`Http function processed request for url "${request.url}"`);
-
   try {
     const openai = new OpenAI({
       apiKey: "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",
     });
     const assistant_id = "asst_tRM0YNhdHurVz0QyGeWgtVQK";
-
     const message = (await request.json()) as MessageRequest;
-    const thread_id = request.params.thread_id as string;
+    context.log(
+      `Processing message for conversation ${message.conversation_id}`
+    );
+    const thread_id = message.conversation_id.replace("conv_", "thread_");
+
     await openai.beta.threads.messages.create(thread_id, {
       role: "user",
       content: message.message,
@@ -44,10 +45,11 @@ export async function sendMessage(
         const content = messagesResponse.data[0].content.find(
           (c) => c.type === "text"
         ) as TextContentBlock;
-        const response: MessageResponse = {
-          thread_id,
-          message: content.text.value,
-        };
+        const response: MessageResponse = new MessageResponse(
+          message.conversation_id,
+          content.text.value,
+          "AGENT"
+        );
         return {
           status: 200,
           jsonBody: response,
@@ -77,7 +79,7 @@ export async function sendMessage(
 
 app.http("sendMessage", {
   methods: ["POST"],
-  route: "chat/{thread_id}",
+  route: "chat",
   authLevel: "anonymous",
   handler: sendMessage,
 });
