@@ -5,14 +5,19 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { ConversationResponse } from "../models/ConversationResponse";
-import { assert } from "console";
 import { db } from "../DatabaseController";
-import { MessageResponse } from "../models/MessageResponse";
+import { authenticateRequest } from "../AuthController";
 
 export async function getConversation(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  try {
+    const authData = await authenticateRequest(request);
+  } catch {
+    return { status: 401 };
+  }
+
   const conv_id = request.params.conv_id as string;
   if (!conv_id) {
     return {

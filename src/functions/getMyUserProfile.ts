@@ -6,11 +6,18 @@ import {
 } from "@azure/functions";
 import { db } from "../DatabaseController";
 import { UserResponse } from "../models/UserReponse";
+import { authenticateRequest } from "../AuthController";
 
 export async function getMyUserProfile(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  try {
+    const authData = await authenticateRequest(request);
+  } catch {
+    return { status: 401 };
+  }
+
   context.log(`get my user profile "${request.url}"`);
 
   const userData: UserResponse = await db

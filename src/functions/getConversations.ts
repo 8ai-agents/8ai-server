@@ -6,11 +6,18 @@ import {
 } from "@azure/functions";
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import { db } from "../DatabaseController";
+import { authenticateRequest } from "../AuthController";
 
 export async function getConversations(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  try {
+    const authData = await authenticateRequest(request);
+  } catch {
+    return { status: 401 };
+  }
+
   context.log(`Get Conversations`);
 
   const data = await db
