@@ -5,12 +5,12 @@ export class MessageResponse {
   conversation_id: string;
   message: string;
   created_at: number;
-  creator: "AGENT" | "CONTACT";
+  creator: "AGENT" | "CONTACT" | "USER";
 
   constructor(
     conversation_id: string,
     message: string,
-    creator: "AGENT" | "CONTACT"
+    creator: "AGENT" | "CONTACT" | "USER"
   ) {
     this.id = `msg_${randomBytes(15).toString("hex")}`;
     this.conversation_id = conversation_id;
