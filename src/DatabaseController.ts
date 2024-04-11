@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { Kysely, PostgresDialect } from "kysely";
 import { Database } from "./models/Database";
 import { ConversationResponse } from "./models/ConversationResponse";
+import { MessageResponse } from "./models/MessageResponse";
 
 const dialect = new PostgresDialect({
   pool: new Pool({
@@ -45,12 +46,7 @@ export const getFullConversation = async (
     .executeTakeFirst();
 
   if (conversationData) {
-    const messageData = await db
-      .selectFrom("messages")
-      .where("conversation_id", "=", conv_id)
-      .selectAll()
-      .execute();
-    const result: ConversationResponse = {
+    return {
       id: conversationData.id,
       contact: {
         id: conversationData.contact_id,
@@ -59,15 +55,34 @@ export const getFullConversation = async (
         phone: conversationData.phone,
         conversations: undefined,
       },
-      messages: messageData,
+      messages: await getMessagesForConversation(conv_id),
       created_at: conversationData.created_at,
       last_message_at: conversationData.last_message_at,
       status: conversationData.status,
       summary: conversationData.summary,
       sentiment: conversationData.sentiment,
     };
-    return result;
   } else {
     throw "Can't find coversation";
   }
+};
+
+export const getMessagesForConversation = async (
+  conv_id: string
+): Promise<MessageResponse[]> => {
+  const data = await db
+    .selectFrom("messages")
+    .where("conversation_id", "=", conv_id)
+    .selectAll()
+    .execute();
+
+  return data.map((m) => {
+    return {
+      id: m.id,
+      conversation_id: conv_id,
+      message: m.message,
+      created_at: m.created_at,
+      creator: m.creator,
+    };
+  });
 };
