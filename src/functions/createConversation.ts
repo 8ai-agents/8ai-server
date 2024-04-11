@@ -15,7 +15,9 @@ export async function createConversation(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    context.log(`Creating new conversation`);
+    const org_id = request.params.org_id;
+    context.log(`Creating new conversation for org ${org_id}`);
+    // TODO get API key from Org ID
     const openai = new OpenAI({
       apiKey: "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",
     });
@@ -29,10 +31,12 @@ export async function createConversation(
     // Save to db
     const contactToSave: NewContact = {
       ...newContact,
+      organisation_id: org_id,
     };
     await db.insertInto("contacts").values(contactToSave).execute();
     const converationToSave: NewConversation = {
       id: response.id,
+      organisation_id: org_id,
       contact_id: contactToSave.id,
       created_at: response.created_at,
       last_message_at: response.last_message_at,
@@ -56,7 +60,7 @@ export async function createConversation(
 
 app.http("createConversation", {
   methods: ["GET"],
-  route: "chat/new",
+  route: "chat/{org_id}/new",
   authLevel: "anonymous",
   handler: createConversation,
 });
