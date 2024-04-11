@@ -26,7 +26,7 @@ export async function getConversation(
 
   const data = await db
     .selectFrom("conversations")
-    .innerJoin("contacts", "contacts.id", "conversations.contact_id")
+    .leftJoin("contacts", "contacts.id", "conversations.contact_id")
     .where("conversations.id", "=", conv_id)
     .select([
       "conversations.id",

@@ -13,10 +13,11 @@ export class ContactResponse {
   phone: string;
 
   constructor() {
-    this.id = `cont_${randomBytes(15).toString("hex")}`;
+    this.id = `cont_${randomBytes(8).toString("hex")}`;
     this.name = uniqueNamesGenerator({
       dictionaries: [adjectives, colors, animals],
       separator: " ",
+      style: "capital",
     });
   }
 }
