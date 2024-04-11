@@ -8,6 +8,8 @@ import { MessageRequest } from "../models/MessageRequest";
 import OpenAI from "openai";
 import { TextContentBlock } from "openai/resources/beta/threads/messages/messages";
 import { MessageResponse } from "../models/MessageResponse";
+import { NewMessage } from "../models/Database";
+import { db } from "../DatabaseController";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -18,15 +20,18 @@ export async function sendMessage(
       apiKey: "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",
     });
     const assistant_id = "asst_tRM0YNhdHurVz0QyGeWgtVQK";
-    const message = (await request.json()) as MessageRequest;
+    const messageRequest = (await request.json()) as MessageRequest;
     context.log(
-      `Processing message for conversation ${message.conversation_id}`
+      `Processing message for conversation ${messageRequest.conversation_id}`
     );
-    const thread_id = message.conversation_id.replace("conv_", "thread_");
+    const thread_id = messageRequest.conversation_id.replace(
+      "conv_",
+      "thread_"
+    );
 
     await openai.beta.threads.messages.create(thread_id, {
       role: "user",
-      content: message.message,
+      content: messageRequest.message,
     });
 
     let run = await openai.beta.threads.runs.create(thread_id, {
@@ -46,10 +51,38 @@ export async function sendMessage(
           (c) => c.type === "text"
         ) as TextContentBlock;
         const response: MessageResponse = new MessageResponse(
-          message.conversation_id,
+          messageRequest.conversation_id,
           content.text.value,
           "AGENT"
         );
+
+        // Save message to database
+        const newMessageRequest: NewMessage = {
+          ...new MessageResponse(
+            messageRequest.conversation_id,
+            messageRequest.message,
+            "CONTACT"
+          ),
+          created_at: response.created_at - 1,
+        };
+        const newMessageResponse: NewMessage = {
+          ...response,
+        };
+        await Promise.all([
+          db
+            .insertInto("messages")
+            .values([newMessageRequest, newMessageResponse])
+            .execute(),
+          db
+            .updateTable("conversations")
+            .set({
+              last_message_at: newMessageResponse.created_at,
+              status: "OPEN",
+            })
+            .where("id", "=", messageRequest.conversation_id)
+            .execute(),
+        ]);
+
         return {
           status: 200,
           jsonBody: response,

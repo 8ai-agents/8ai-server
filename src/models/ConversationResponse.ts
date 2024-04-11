@@ -1,5 +1,4 @@
 import { ContactResponse } from "./ContactResponse";
-import { ConversationsResponse } from "./ConversationsResponse";
 import { MessageResponse } from "./MessageResponse";
 
 export interface ConversationResponse {

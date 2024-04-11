@@ -12,7 +12,7 @@ export class MessageResponse {
     message: string,
     creator: "AGENT" | "CONTACT"
   ) {
-    this.id = `msg_${randomBytes(8).toString("ascii")}`;
+    this.id = `msg_${randomBytes(15).toString("hex")}`;
     this.conversation_id = conversation_id;
     this.message = message;
     this.created_at = Date.now();
