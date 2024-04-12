@@ -13,7 +13,7 @@ export async function getContact(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const authData = await authenticateRequest(request);
+    //const authData = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }
