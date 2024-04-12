@@ -4,11 +4,10 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { ConversationResponse } from "../models/ConversationResponse";
-import { db, getFullConversation } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
+import { db, getFullConversation } from "../DatabaseController";
 
-export async function getConversation(
+export async function updateConversationStatus(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -19,6 +18,7 @@ export async function getConversation(
   }
 
   const conv_id = request.params.conv_id as string;
+  const new_status = request.params.new_status as "DRAFT" | "OPEN" | "CLOSED";
   if (!conv_id) {
     return {
       status: 400,
@@ -27,7 +27,21 @@ export async function getConversation(
       },
     };
   }
-  context.log(`Get Conversation ${conv_id}`);
+  if (!new_status) {
+    return {
+      status: 400,
+      jsonBody: {
+        error: "Must supply a valid status",
+      },
+    };
+  }
+  context.log(`Update Conversation Status ${conv_id}`);
+
+  await db
+    .updateTable("conversations")
+    .set({ status: new_status })
+    .where("id", "==", conv_id)
+    .execute();
 
   try {
     const result = await getFullConversation(conv_id);
@@ -42,9 +56,9 @@ export async function getConversation(
   }
 }
 
-app.http("getConversation", {
-  methods: ["GET"],
-  route: "conversations/{conv_id}",
+app.http("updateConversationStatus", {
+  methods: ["PUT"],
   authLevel: "anonymous",
-  handler: getConversation,
+  route: "conversations/{conv_id}/status/{new_status}",
+  handler: updateConversationStatus,
 });
