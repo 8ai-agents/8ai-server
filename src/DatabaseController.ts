@@ -1,19 +1,13 @@
-import { Pool } from "pg";
+import * as pg from "pg";
 import { Kysely, PostgresDialect } from "kysely";
 import { Database } from "./models/Database";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { MessageResponse } from "./models/MessageResponse";
 
-const dialect = new PostgresDialect({
-  pool: new Pool({
-    database: process.env.PG_DATABASE,
-    host: "8ai-prod.postgres.database.azure.com",
-    user: "server",
-    port: 5432,
-    max: 5,
-    password: process.env.PG_PASSWORD,
-    ssl: true,
-  }),
+const int8TypeId = 20;
+// Map int8 to number.
+pg.types.setTypeParser(int8TypeId, (val) => {
+  return parseInt(val, 10);
 });
 
 // Database interface is passed to Kysely's constructor, and from now on, Kysely
@@ -21,7 +15,17 @@ const dialect = new PostgresDialect({
 // Dialect is passed to Kysely's constructor, and from now on, Kysely knows how
 // to communicate with your database.
 export const db = new Kysely<Database>({
-  dialect,
+  dialect: new PostgresDialect({
+    pool: new pg.Pool({
+      database: process.env.PG_DATABASE,
+      host: "8ai-prod.postgres.database.azure.com",
+      user: "server",
+      port: 5432,
+      max: 5,
+      password: process.env.PG_PASSWORD,
+      ssl: true,
+    }),
+  }),
 });
 
 export const getFullConversation = async (
