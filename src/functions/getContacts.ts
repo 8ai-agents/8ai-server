@@ -13,7 +13,7 @@ export async function getContacts(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    //const authData = await authenticateRequest(request);
+    const email = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }

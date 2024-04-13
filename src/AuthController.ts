@@ -1,7 +1,9 @@
 import { HttpRequest } from "@azure/functions";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-export const authenticateRequest = async (request: HttpRequest) => {
+export const authenticateRequest = async (
+  request: HttpRequest
+): Promise<string> => {
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader) {
@@ -16,13 +18,13 @@ export const authenticateRequest = async (request: HttpRequest) => {
   const token = tokenParts[1];
 
   const JWKS = createRemoteJWKSet(
-    new URL("https://bayly.au.auth0.com/.well-known/jwks.json")
+    new URL("https://8ai.au.auth0.com/.well-known/jwks.json")
   );
 
   const { payload } = await jwtVerify(token, JWKS, {
-    issuer: "https://bayly.au.auth0.com/",
-    audience: "8ai-prod",
+    issuer: "https://8ai.au.auth0.com/",
+    audience: "https://api.8ai.co.nz",
   });
 
-  return payload;
+  return payload["email"] as string;
 };
