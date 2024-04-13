@@ -70,7 +70,7 @@ export async function getContact(
 
 app.http("getContact", {
   methods: ["GET"],
-  route: "conversations/{cont_id}",
+  route: "contacts/{cont_id}",
   authLevel: "anonymous",
   handler: getContact,
 });

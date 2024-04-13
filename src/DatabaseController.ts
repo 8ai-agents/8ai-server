@@ -32,7 +32,7 @@ export const getFullConversation = async (
   conv_id: string
 ): Promise<ConversationResponse> => {
   const conversationData = await db
-    .selectFrom("conversations")
+    .selectFrom("conversations") 
     .leftJoin("contacts", "contacts.id", "conversations.contact_id")
     .where("conversations.id", "=", conv_id)
     .select([

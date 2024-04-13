@@ -18,8 +18,6 @@ export async function getConversations(
     return { status: 401 };
   }
 
-  context.log(`Get Conversations`);
-
   const data = await db
     .selectFrom("conversations")
     .innerJoin("contacts", "conversations.contact_id", "contacts.id")
