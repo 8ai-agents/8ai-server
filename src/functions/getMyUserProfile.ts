@@ -12,13 +12,14 @@ export async function getMyUserProfile(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  let email = "";
   try {
-    const email = await authenticateRequest(request);
+    email = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }
 
-  context.log(`get my user profile "${request.url}"`);
+  context.log(`get my user profile`);
 
   const userData: UserResponse = await db
     .selectFrom("users")
@@ -31,9 +32,19 @@ export async function getMyUserProfile(
       "organisations.id as organisation_id",
       "organisations.name as organisation_name",
     ])
+    .where("email", "==", email.toLowerCase())
     .executeTakeFirst();
 
-  return { status: 200, jsonBody: userData };
+  if (userData) {
+    return { status: 200, jsonBody: userData };
+  } else {
+    return {
+      status: 404,
+      jsonBody: {
+        error: "User not found",
+      },
+    };
+  }
 }
 
 app.http("getMyUserProfile", {
