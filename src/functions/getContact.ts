@@ -30,14 +30,14 @@ export async function getContact(
   context.log(`Get Contact ${cont_id}`);
   const contactData = await db
     .selectFrom("contacts")
-    .where("id", "==", cont_id)
+    .where("id", "=", cont_id)
     .selectAll()
     .executeTakeFirst();
 
   if (contactData) {
     const conversationData = await db
       .selectFrom("conversations")
-      .where("contact_id", "==", cont_id)
+      .where("contact_id", "=", cont_id)
       .where("status", "!=", "DRAFT")
       .selectAll()
       .execute();

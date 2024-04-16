@@ -43,6 +43,7 @@ export async function createConversation(
       status: response.status,
       summary: response.summary,
       sentiment: 0,
+      interrupted: false,
     };
     await db.insertInto("conversations").values(converationToSave).execute();
 

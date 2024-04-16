@@ -19,7 +19,7 @@ export async function getMyUserProfile(
     return { status: 401 };
   }
 
-  context.log(`get my user profile`);
+  context.log(`get my user profile ${email.toLowerCase()}`);
 
   const userData: UserResponse = await db
     .selectFrom("users")
@@ -32,7 +32,7 @@ export async function getMyUserProfile(
       "organisations.id as organisation_id",
       "organisations.name as organisation_name",
     ])
-    .where("email", "==", email.toLowerCase())
+    .where("email", "=", email.toLowerCase())
     .executeTakeFirst();
 
   if (userData) {

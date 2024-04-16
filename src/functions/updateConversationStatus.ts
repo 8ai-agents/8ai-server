@@ -40,7 +40,7 @@ export async function updateConversationStatus(
   await db
     .updateTable("conversations")
     .set({ status: new_status })
-    .where("id", "==", conv_id)
+    .where("id", "=", conv_id)
     .execute();
 
   try {

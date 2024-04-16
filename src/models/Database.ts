@@ -24,8 +24,10 @@ export interface ConversationTable {
   id: string;
   organisation_id: string;
   contact_id: string;
+  assignee_id: string | undefined;
   created_at: number;
   last_message_at: number;
+  interrupted: boolean;
   status: "DRAFT" | "OPEN" | "CLOSED";
   summary: string | undefined;
   sentiment: number | undefined;
@@ -62,6 +64,7 @@ export type UserUpdate = Updateable<UserTable>;
 export interface OrganisationTable {
   id: string;
   name: string;
+  assistant_id: string | undefined;
 }
 
 export type Organisation = Selectable<OrganisationTable>;
