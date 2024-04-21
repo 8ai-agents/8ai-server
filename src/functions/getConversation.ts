@@ -4,8 +4,7 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { ConversationResponse } from "../models/ConversationResponse";
-import { db, getFullConversation } from "../DatabaseController";
+import { getFullConversation } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
 
 export async function getConversation(

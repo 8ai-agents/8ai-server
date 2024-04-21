@@ -65,6 +65,9 @@ export interface OrganisationTable {
   id: string;
   name: string;
   assistant_id: string | undefined;
+  description: string;
+  website: string;
+  logo_url: string;
 }
 
 export type Organisation = Selectable<OrganisationTable>;
