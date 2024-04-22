@@ -27,7 +27,7 @@ export async function cronSummariseConversations(
 
     try {
       const openai = new OpenAI({
-        apiKey: "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",
+        apiKey: process.env.OPEN_API_KEY,
       });
       const assistant_id = "asst_tRM0YNhdHurVz0QyGeWgtVQK";
       const thread_id = id.replace("conv_", "thread_");

@@ -19,7 +19,7 @@ export async function createConversation(
     context.log(`Creating new conversation for org ${org_id}`);
     // TODO get API key from Org ID
     const openai = new OpenAI({
-      apiKey: "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",
+      apiKey: process.env.OPEN_API_KEY,
     });
     const thread = await openai.beta.threads.create();
     const newContact: ContactResponse = new ContactResponse();
