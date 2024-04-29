@@ -7,6 +7,7 @@ import {
 import { authenticateRequest } from "../AuthController";
 import { db } from "../DatabaseController";
 import { ContactResponse } from "../models/ContactResponse";
+import { ConversationStatusType } from "../models/Database";
 
 export async function getContact(
   request: HttpRequest,
@@ -38,7 +39,7 @@ export async function getContact(
     const conversationData = await db
       .selectFrom("conversations")
       .where("contact_id", "=", cont_id)
-      .where("status", "!=", "DRAFT")
+      .where("status", "!=", ConversationStatusType.DRAFT)
       .selectAll()
       .execute();
     const result: ContactResponse = {

@@ -8,7 +8,11 @@ import { MessageRequest } from "../models/MessageRequest";
 import OpenAI from "openai";
 import { TextContentBlock } from "openai/resources/beta/threads/messages/messages";
 import { MessageResponse } from "../models/MessageResponse";
-import { NewMessage } from "../models/Database";
+import {
+  ConversationStatusType,
+  MessageCreatorType,
+  NewMessage,
+} from "../models/Database";
 import { db } from "../DatabaseController";
 
 export async function sendMessage(
@@ -84,7 +88,7 @@ export async function sendMessage(
           const response: MessageResponse = new MessageResponse(
             messageRequest.conversation_id,
             content.text.value,
-            "AGENT"
+            MessageCreatorType.AGENT
           );
 
           // Save message to database
@@ -141,7 +145,7 @@ const saveMessageToDatabase = (
             last_message_at: response
               ? response.created_at
               : request.created_at,
-            status: "OPEN",
+            status: ConversationStatusType.OPEN,
             interrupted: true,
           })
           .where("id", "=", request.conversation_id)
@@ -152,7 +156,7 @@ const saveMessageToDatabase = (
             last_message_at: response
               ? response.created_at
               : request.created_at,
-            status: "OPEN",
+            status: ConversationStatusType.OPEN,
           })
           .where("id", "=", request.conversation_id)
           .execute(),

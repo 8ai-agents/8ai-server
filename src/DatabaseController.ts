@@ -3,6 +3,7 @@ import { Kysely, PostgresDialect } from "kysely";
 import { Database } from "./models/Database";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { MessageResponse } from "./models/MessageResponse";
+import { OrganisationResponse } from "./models/OrganisationResponse";
 
 const int8TypeId = 20;
 // Map int8 to number.
@@ -32,7 +33,7 @@ export const getFullConversation = async (
   conv_id: string
 ): Promise<ConversationResponse> => {
   const conversationData = await db
-    .selectFrom("conversations") 
+    .selectFrom("conversations")
     .leftJoin("contacts", "contacts.id", "conversations.contact_id")
     .where("conversations.id", "=", conv_id)
     .select([
@@ -89,4 +90,19 @@ export const getMessagesForConversation = async (
       creator: m.creator,
     };
   });
+};
+
+export const getOrganisation = async (
+  org_id: string
+): Promise<OrganisationResponse> => {
+  const data = await db
+    .selectFrom("organisations")
+    .where("organisations.id", "=", org_id)
+    .selectAll()
+    .executeTakeFirstOrThrow();
+
+  const result: OrganisationResponse = {
+    ...data,
+  };
+  return result;
 };

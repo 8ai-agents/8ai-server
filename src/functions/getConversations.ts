@@ -7,6 +7,7 @@ import {
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import { db } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
+import { ConversationStatusType } from "../models/Database";
 
 export async function getConversations(
   request: HttpRequest,
@@ -21,7 +22,7 @@ export async function getConversations(
   const data = await db
     .selectFrom("conversations")
     .innerJoin("contacts", "conversations.contact_id", "contacts.id")
-    .where("status", "!=", "DRAFT")
+    .where("status", "!=", ConversationStatusType.DRAFT)
     .select([
       "conversations.id",
       "contacts.name",

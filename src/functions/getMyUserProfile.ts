@@ -12,14 +12,14 @@ export async function getMyUserProfile(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  let email = "";
+  let authData;
   try {
-    email = await authenticateRequest(request);
+    authData = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }
 
-  context.log(`get my user profile ${email.toLowerCase()}`);
+  context.log(`get my user profile ${authData.email.toLowerCase()}`);
 
   const userData: UserResponse = await db
     .selectFrom("users")
@@ -29,10 +29,11 @@ export async function getMyUserProfile(
       "users.email",
       "users.name",
       "users.phone",
+      "users.role",
       "organisations.id as organisation_id",
       "organisations.name as organisation_name",
     ])
-    .where("email", "=", email.toLowerCase())
+    .where("email", "=", authData.email.toLowerCase())
     .executeTakeFirst();
 
   if (userData) {

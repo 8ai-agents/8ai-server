@@ -28,9 +28,15 @@ export interface ConversationTable {
   created_at: number;
   last_message_at: number;
   interrupted: boolean;
-  status: "DRAFT" | "OPEN" | "CLOSED";
+  status: ConversationStatusType;
   summary: string | undefined;
   sentiment: number | undefined;
+}
+
+export enum ConversationStatusType {
+  DRAFT = "DRAFT",
+  OPEN = "OPEN",
+  CLOSED = "CLOSED",
 }
 
 export type Conversation = Selectable<ConversationTable>;
@@ -42,8 +48,14 @@ export interface MessageTable {
   conversation_id: string;
   message: string;
   created_at: number;
-  creator: "AGENT" | "CONTACT" | "USER";
+  creator: MessageCreatorType;
   user_id: string | undefined;
+}
+
+export enum MessageCreatorType {
+  AGENT = "AGENT",
+  CONTACT = "CONTACT",
+  USER = "USER",
 }
 
 export type Message = Selectable<MessageTable>;
@@ -55,6 +67,13 @@ export interface UserTable {
   name: string;
   email: string;
   phone: string | undefined;
+  role: UserRoleType;
+}
+
+export enum UserRoleType {
+  USER = "USER",
+  ADMIN = "ADMIN",
+  SUPER_ADMIN = "SUPER_ADMIN",
 }
 
 export type User = Selectable<UserTable>;

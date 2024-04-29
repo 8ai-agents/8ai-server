@@ -4,8 +4,7 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { db } from "../DatabaseController";
-import { OrganisationResponse } from "../models/OrganisationResponse";
+import { getOrganisation as retrieveOrganisation } from "../DatabaseController";
 
 export async function getOrganisation(
   request: HttpRequest,
@@ -23,16 +22,8 @@ export async function getOrganisation(
   context.log(`Get Organisation ${org_id}`);
 
   try {
-    const data = await db
-      .selectFrom("organisations")
-      .where("organisations.id", "=", org_id)
-      .selectAll()
-      .executeTakeFirstOrThrow();
-
-    const result: OrganisationResponse = {
-      ...data,
-    };
-    return { status: 200, jsonBody: result };
+    const jsonBody = await retrieveOrganisation(org_id);
+    return { status: 200, jsonBody };
   } catch {
     return {
       status: 404,

@@ -2,6 +2,7 @@ import { app, InvocationContext, Timer } from "@azure/functions";
 import { db } from "../DatabaseController";
 import OpenAI from "openai";
 import { TextContentBlock } from "openai/resources/beta/threads/messages/messages";
+import { ConversationStatusType } from "../models/Database";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
@@ -13,7 +14,7 @@ export async function cronSummariseConversations(
   const twentyMinutesAgo: number = Date.now() - 1000 * 60 * 20; // More than 10 minutes ago
   const conversations = await db
     .selectFrom("conversations")
-    .where("status", "!=", "DRAFT")
+    .where("status", "!=", ConversationStatusType.DRAFT)
     .select(["id", "last_message_at", "summary"])
     .execute();
 

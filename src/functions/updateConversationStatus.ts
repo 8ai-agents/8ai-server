@@ -6,6 +6,7 @@ import {
 } from "@azure/functions";
 import { authenticateRequest } from "../AuthController";
 import { db, getFullConversation } from "../DatabaseController";
+import { ConversationStatusType } from "../models/Database";
 
 export async function updateConversationStatus(
   request: HttpRequest,
@@ -18,7 +19,7 @@ export async function updateConversationStatus(
   }
 
   const conv_id = request.params.conv_id as string;
-  const new_status = request.params.new_status as "DRAFT" | "OPEN" | "CLOSED";
+  const new_status = request.params.new_status as ConversationStatusType;
   if (!conv_id) {
     return {
       status: 400,

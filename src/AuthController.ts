@@ -1,9 +1,10 @@
 import { HttpRequest } from "@azure/functions";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { UserRoleType } from "./models/Database";
 
 export const authenticateRequest = async (
   request: HttpRequest
-): Promise<string> => {
+): Promise<{ email: string; role: UserRoleType }> => {
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader) {
@@ -26,5 +27,8 @@ export const authenticateRequest = async (
     audience: "https://api.8ai.co.nz",
   });
 
-  return payload["email"] as string;
+  return {
+    email: payload["email"] as string,
+    role: payload["role"] as UserRoleType,
+  };
 };

@@ -1,16 +1,17 @@
 import { randomBytes } from "crypto";
+import { MessageCreatorType } from "./Database";
 
 export class MessageResponse {
   id: string;
   conversation_id: string;
   message: string;
   created_at: number;
-  creator: "AGENT" | "CONTACT" | "USER";
+  creator: MessageCreatorType;
 
   constructor(
     conversation_id: string,
     message: string,
-    creator: "AGENT" | "CONTACT" | "USER"
+    creator: MessageCreatorType
   ) {
     this.id = `msg_${randomBytes(8).toString("hex")}`;
     this.conversation_id = conversation_id;

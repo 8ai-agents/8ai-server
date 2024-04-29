@@ -1,4 +1,5 @@
 import { ContactResponse } from "./ContactResponse";
+import { ConversationStatusType } from "./Database";
 import { MessageResponse } from "./MessageResponse";
 
 export interface ConversationResponse {
@@ -7,7 +8,7 @@ export interface ConversationResponse {
   created_at: number;
   last_message_at: number;
   messages: MessageResponse[];
-  status: "DRAFT" | "OPEN" | "CLOSED";
+  status: ConversationStatusType;
   summary: string;
   sentiment: number;
 }
