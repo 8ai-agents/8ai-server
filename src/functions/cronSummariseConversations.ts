@@ -12,13 +12,17 @@ export async function cronSummariseConversations(
 
   const tenMinutesAgo: number = Date.now() - 1000 * 60 * 10; // More than 10 minutes ago
   const twentyMinutesAgo: number = Date.now() - 1000 * 60 * 20; // More than 10 minutes ago
+  const organisationsAssistants = await db
+    .selectFrom("organisations")
+    .select(["id", "assistant_id"])
+    .execute();
   const conversations = await db
     .selectFrom("conversations")
     .where("status", "!=", ConversationStatusType.DRAFT)
-    .select(["id", "last_message_at", "summary"])
+    .select(["id", "organisation_id", "last_message_at", "summary"])
     .execute();
 
-  for (const { id } of conversations.filter(
+  for (const { id, organisation_id } of conversations.filter(
     (c) =>
       !c.summary ||
       (c.last_message_at <= tenMinutesAgo &&
@@ -30,7 +34,9 @@ export async function cronSummariseConversations(
       const openai = new OpenAI({
         apiKey: process.env.OPEN_API_KEY,
       });
-      const assistant_id = "asst_tRM0YNhdHurVz0QyGeWgtVQK";
+      const organisation = organisationsAssistants.find(
+        (o) => o.id === organisation_id
+      );
       const thread_id = id.replace("conv_", "thread_");
 
       await openai.beta.threads.messages.create(thread_id, {
@@ -40,7 +46,7 @@ export async function cronSummariseConversations(
       });
 
       let run = await openai.beta.threads.runs.create(thread_id, {
-        assistant_id,
+        assistant_id: organisation.assistant_id,
         instructions: "",
       });
 
