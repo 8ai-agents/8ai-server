@@ -42,7 +42,7 @@ export async function cronSummariseConversations(
       await openai.beta.threads.messages.create(thread_id, {
         role: "assistant",
         content:
-          "Please summarise in one line the conversation so far, what is it about, and has the customer's request been resolved",
+          "Please summarise in one line the conversation so far, what is it about, and if the customer's request been resolved",
       });
 
       let run = await openai.beta.threads.runs.create(thread_id, {
@@ -70,12 +70,19 @@ export async function cronSummariseConversations(
             .where("id", "=", id)
             .execute();
         } else if (run.status === "failed") {
-          context.error(`Summarising Conversation ${id} - ${run.last_error}`);
+          context.error(
+            `Summarising Conversation Failed ${id} - ${JSON.stringify(
+              run.last_error
+            )}`
+          );
         }
       }
+      await new Promise((resolve) => setTimeout(resolve, 10000));
     } catch (error: unknown) {
       const err = error as Error;
-      context.error(`Summarising Conversation ${id} - ${err.message}`);
+      context.error(
+        `Summarising Conversation Error ${id} - ${JSON.stringify(err.message)}`
+      );
     }
   }
 }
