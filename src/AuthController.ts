@@ -4,7 +4,7 @@ import { UserRoleType } from "./models/Database";
 
 export const authenticateRequest = async (
   request: HttpRequest
-): Promise<{ email: string; role: UserRoleType }> => {
+): Promise<{ email: string }> => {
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader) {
@@ -29,6 +29,5 @@ export const authenticateRequest = async (
 
   return {
     email: payload["email"] as string,
-    role: payload["role"] as UserRoleType,
   };
 };

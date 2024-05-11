@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { authenticateRequest } from "../AuthController";
-import { db } from "../DatabaseController";
+import { db, getUser } from "../DatabaseController";
 import { UserRoleType } from "../models/Database";
 import { OrganisationResponse } from "../models/OrganisationResponse";
 
@@ -14,8 +14,9 @@ export async function getOrganisations(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const { role } = await authenticateRequest(request);
-    if (role != UserRoleType.SUPER_ADMIN) return { status: 403 };
+    const { email } = await authenticateRequest(request);
+    const user = await getUser(email);
+    if (user.role != UserRoleType.SUPER_ADMIN) return { status: 403 };
   } catch {
     return { status: 401 };
   }

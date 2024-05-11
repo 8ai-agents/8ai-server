@@ -7,15 +7,16 @@ import {
 import { authenticateRequest } from "../AuthController";
 import { OrganisationUpdate, UserRoleType } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
-import { db, getOrganisation } from "../DatabaseController";
+import { db, getOrganisation, getUser } from "../DatabaseController";
 
 export async function updateOrganisation(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const { role } = await authenticateRequest(request);
-    if (role != UserRoleType.SUPER_ADMIN) return { status: 403 };
+    const { email } = await authenticateRequest(request);
+    const user = await getUser(email);
+    if (user.role != UserRoleType.SUPER_ADMIN) return { status: 403 };
   } catch {
     return { status: 401 };
   }
@@ -45,6 +46,7 @@ export async function updateOrganisation(
 
     await db
       .updateTable("organisations")
+      .set(orgToUpdate)
       .where("id", "=", orgToUpdate.id)
       .execute();
 

@@ -1,6 +1,6 @@
 import * as pg from "pg";
 import { Kysely, PostgresDialect } from "kysely";
-import { Database } from "./models/Database";
+import { Database, User } from "./models/Database";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { MessageResponse } from "./models/MessageResponse";
 import { OrganisationResponse } from "./models/OrganisationResponse";
@@ -105,4 +105,12 @@ export const getOrganisation = async (
     ...data,
   };
   return result;
+};
+
+export const getUser = (email: string): Promise<User> => {
+  return db
+    .selectFrom("users")
+    .selectAll()
+    .where("email", "=", email.toLowerCase())
+    .executeTakeFirst();
 };

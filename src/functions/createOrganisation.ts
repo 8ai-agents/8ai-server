@@ -8,15 +8,16 @@ import { authenticateRequest } from "../AuthController";
 import { NewOrganisation, UserRoleType } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { randomBytes } from "crypto";
-import { db, getOrganisation } from "../DatabaseController";
+import { db, getOrganisation, getUser } from "../DatabaseController";
 
 export async function createOrganisation(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const { role } = await authenticateRequest(request);
-    if (role != UserRoleType.SUPER_ADMIN) return { status: 403 };
+    const { email } = await authenticateRequest(request);
+    const user = await getUser(email);
+    if (user.role != UserRoleType.SUPER_ADMIN) return { status: 403 };
   } catch {
     return { status: 401 };
   }
