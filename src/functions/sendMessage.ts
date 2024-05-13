@@ -69,52 +69,52 @@ export async function sendMessage(
         content: messageRequest.message,
       });
 
-      let run = await openai.beta.threads.runs.create(thread_id, {
-        assistant_id,
-        instructions: "",
-      });
+      let run = await openai.beta.threads.runs.createAndPoll(
+        thread_id,
+        {
+          assistant_id,
+          instructions: "",
+        },
+        { pollIntervalMs: 1000 }
+      );
 
-      while (["queued", "in_progress", "cancelling"].includes(run.status)) {
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 1 second
-        run = await openai.beta.threads.runs.retrieve(run.thread_id, run.id);
+      const messageResponse: MessageResponse[] = [];
 
-        if (run.status === "completed") {
-          const messagesResponse = await openai.beta.threads.messages.list(
-            run.thread_id
-          );
-          const content = messagesResponse.data[0].content.find(
-            (c) => c.type === "text"
-          ) as TextContentBlock;
-          const response: MessageResponse = new MessageResponse(
-            messageRequest.conversation_id,
-            content.text.value,
-            MessageCreatorType.AGENT
-          );
-
-          // Save message to database
-          const newMessageResponse: NewMessage = {
-            ...response,
-          };
-          await saveMessageToDatabase(
-            newMessageRequest,
-            newMessageResponse,
-            false
-          );
-
-          return {
-            status: 200,
-            jsonBody: response,
-          };
-        } else if (run.status === "failed") {
-          context.error(run.last_error);
-          return {
-            status: 500,
-            jsonBody: {
-              error: "Failed to send message",
-            },
-          };
+      if (run.status === "completed") {
+        const messages = await openai.beta.threads.messages.list(run.thread_id);
+        for (const message of messages.data.slice(
+          0,
+          messages.data.findIndex((m) => m.role === "user")
+        )) {
+          // Gets all messages from the assistant since last user message
+          if (message.content[0].type === "text") {
+            messageResponse.push(
+              new MessageResponse(
+                messageRequest.conversation_id,
+                message.content[0].text.value,
+                MessageCreatorType.AGENT,
+                message.created_at * 1000
+              )
+            );
+          }
         }
+      } else {
+        context.error(run.status);
+        return {
+          status: 500,
+          jsonBody: {
+            error: "Failed to send message",
+          },
+        };
       }
+
+      // Save message to database
+      await saveMessageToDatabase(newMessageRequest, messageResponse, false);
+
+      return {
+        status: 200,
+        jsonBody: messageResponse,
+      };
     }
   } catch (error) {
     context.error(`Error sending message: ${error}`);
@@ -129,36 +129,45 @@ export async function sendMessage(
 }
 
 const saveMessageToDatabase = (
-  request: NewMessage,
-  response: NewMessage | undefined,
+  requestToSave: NewMessage,
+  responses: MessageResponse[] | undefined,
   setInterrupted: boolean
 ) => {
+  const responsesToSave: NewMessage[] = responses
+    ? responses.map((r) => {
+        return {
+          ...r,
+        } as NewMessage;
+      })
+    : undefined;
   return Promise.all([
     db
       .insertInto("messages")
-      .values(response ? [request, response] : [request])
+      .values(
+        responsesToSave ? [requestToSave, ...responsesToSave] : [requestToSave]
+      )
       .execute(),
     setInterrupted
       ? db
           .updateTable("conversations")
           .set({
-            last_message_at: response
-              ? response.created_at
-              : request.created_at,
+            last_message_at: responsesToSave
+              ? Math.max(...responsesToSave.map((r) => r.created_at))
+              : requestToSave.created_at,
             status: ConversationStatusType.OPEN,
             interrupted: true,
           })
-          .where("id", "=", request.conversation_id)
+          .where("id", "=", requestToSave.conversation_id)
           .execute()
       : db
           .updateTable("conversations")
           .set({
-            last_message_at: response
-              ? response.created_at
-              : request.created_at,
+            last_message_at: responsesToSave
+              ? Math.max(...responsesToSave.map((r) => r.created_at))
+              : requestToSave.created_at,
             status: ConversationStatusType.OPEN,
           })
-          .where("id", "=", request.conversation_id)
+          .where("id", "=", requestToSave.conversation_id)
           .execute(),
   ]);
 };

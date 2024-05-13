@@ -11,12 +11,13 @@ export class MessageResponse {
   constructor(
     conversation_id: string,
     message: string,
-    creator: MessageCreatorType
+    creator: MessageCreatorType,
+    created_at?: number
   ) {
     this.id = `msg_${randomBytes(8).toString("hex")}`;
     this.conversation_id = conversation_id;
     this.message = message;
-    this.created_at = Date.now();
+    this.created_at = created_at || Date.now();
     this.creator = creator;
   }
 }

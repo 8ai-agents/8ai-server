@@ -5,18 +5,11 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { getFullConversation } from "../DatabaseController";
-import { authenticateRequest } from "../AuthController";
 
 export async function getConversation(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  try {
-    const email = await authenticateRequest(request);
-  } catch {
-    return { status: 401 };
-  }
-
   const conv_id = request.params.conv_id as string;
   if (!conv_id) {
     return {
