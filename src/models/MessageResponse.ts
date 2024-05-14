@@ -1,5 +1,5 @@
-import { randomBytes } from "crypto";
 import { MessageCreatorType } from "./Database";
+import { createID } from "../Utils";
 
 export class MessageResponse {
   id: string;
@@ -14,7 +14,7 @@ export class MessageResponse {
     creator: MessageCreatorType,
     created_at?: number
   ) {
-    this.id = `msg_${randomBytes(8).toString("hex")}`;
+    this.id = createID("msg");
     this.conversation_id = conversation_id;
     this.message = message;
     this.created_at = created_at || Date.now();

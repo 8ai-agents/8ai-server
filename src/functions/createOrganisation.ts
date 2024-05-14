@@ -5,10 +5,10 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { authenticateRequest } from "../AuthController";
-import { NewOrganisation, UserRoleType } from "../models/Database";
+import { NewOrganisation } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
-import { randomBytes } from "crypto";
-import { db, getOrganisation, getUser } from "../DatabaseController";
+import { db, getOrganisation } from "../DatabaseController";
+import { checkUserIsAdmin, createID } from "../Utils";
 
 export async function createOrganisation(
   request: HttpRequest,
@@ -16,8 +16,7 @@ export async function createOrganisation(
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);
-    const user = await getUser(email);
-    if (user.role != UserRoleType.SUPER_ADMIN) return { status: 403 };
+    if (!checkUserIsAdmin("", email, true)) return { status: 403 };
   } catch {
     return { status: 401 };
   }
@@ -28,7 +27,7 @@ export async function createOrganisation(
     context.log(`Creating organisation ${organisationRequest.name}`);
     const organisationToSave: NewOrganisation = {
       ...organisationRequest,
-      id: `org_${randomBytes(8).toString("hex")}`,
+      id: createID("org"),
     };
     await db
       .insertInto("organisations")

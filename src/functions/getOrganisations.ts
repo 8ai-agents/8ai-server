@@ -8,6 +8,7 @@ import { authenticateRequest } from "../AuthController";
 import { db, getUser } from "../DatabaseController";
 import { UserRoleType } from "../models/Database";
 import { OrganisationResponse } from "../models/OrganisationResponse";
+import { checkUserIsAdmin } from "../Utils";
 
 export async function getOrganisations(
   request: HttpRequest,
@@ -15,8 +16,7 @@ export async function getOrganisations(
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);
-    const user = await getUser(email);
-    if (user.role != UserRoleType.SUPER_ADMIN) return { status: 403 };
+    if (!checkUserIsAdmin("", email, true)) return { status: 403 };
   } catch {
     return { status: 401 };
   }

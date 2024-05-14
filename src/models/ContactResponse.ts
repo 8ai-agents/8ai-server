@@ -1,4 +1,3 @@
-import { randomBytes } from "crypto";
 import {
   uniqueNamesGenerator,
   adjectives,
@@ -6,6 +5,7 @@ import {
   animals,
 } from "unique-names-generator";
 import { ConversationsResponse } from "./ConversationsResponse";
+import { createID } from "../Utils";
 
 export class ContactResponse {
   id: string;
@@ -15,7 +15,7 @@ export class ContactResponse {
   conversations: ConversationsResponse[] | undefined = undefined;
 
   constructor() {
-    this.id = `cont_${randomBytes(8).toString("hex")}`;
+    this.id = createID("cont");
     this.name = uniqueNamesGenerator({
       dictionaries: [adjectives, colors, animals],
       separator: " ",

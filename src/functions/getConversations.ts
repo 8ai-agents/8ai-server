@@ -7,14 +7,26 @@ import {
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import { db } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
-import { ConversationStatusType } from "../models/Database";
+import { ConversationStatusType, UserRoleType } from "../models/Database";
+import { checkUserIsAdmin } from "../Utils";
 
 export async function getConversations(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  const org_id = request.params.org_id as string;
+  if (!org_id) {
+    return {
+      status: 400,
+      jsonBody: {
+        error: "Must supply a valid organisation ID",
+      },
+    };
+  }
+
   try {
-    const email = await authenticateRequest(request);
+    const { email } = await authenticateRequest(request);
+    if (!checkUserIsAdmin(org_id, email)) return { status: 403 };
   } catch {
     return { status: 401 };
   }
@@ -22,6 +34,7 @@ export async function getConversations(
   const data = await db
     .selectFrom("conversations")
     .innerJoin("contacts", "conversations.contact_id", "contacts.id")
+    .where("conversations.organisation_id", "=", org_id)
     .where("status", "!=", ConversationStatusType.DRAFT)
     .select([
       "conversations.id",
@@ -49,7 +62,7 @@ export async function getConversations(
 
 app.http("getConversations", {
   methods: ["GET"],
-  route: "conversations",
+  route: "{org_id}/conversations",
   authLevel: "anonymous",
   handler: getConversations,
 });

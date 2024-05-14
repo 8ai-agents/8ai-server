@@ -1,5 +1,5 @@
-import { randomBytes } from "crypto";
 import { UserRoleType } from "./Database";
+import { createID } from "../Utils";
 
 export class UserResponse {
   id: string;
@@ -11,7 +11,7 @@ export class UserResponse {
   role: UserRoleType;
 
   constructor(org_id: string, name: string, email: string) {
-    this.id = `user_${randomBytes(8).toString("hex")}`;
+    this.id = createID("user");
     this.organisation_id = org_id;
     this.name = name;
     this.email = this.email;

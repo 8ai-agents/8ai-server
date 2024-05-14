@@ -14,7 +14,7 @@ export async function getContact(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const email = await authenticateRequest(request);
+    const { email } = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }
