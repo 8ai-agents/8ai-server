@@ -12,7 +12,7 @@ import { checkUserIsAdmin } from "../Utils";
 
 export async function getOrganisations(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);

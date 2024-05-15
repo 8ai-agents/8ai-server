@@ -11,7 +11,7 @@ import { db, getOrganisation, getUser } from "../DatabaseController";
 
 export async function updateOrganisation(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);
@@ -32,7 +32,7 @@ export async function updateOrganisation(
       };
     }
     const orgToUpdate: OrganisationUpdate = await getOrganisation(
-      organisationRequest.id
+      organisationRequest.id,
     );
 
     context.log(`Updating organisation ${orgToUpdate.id}`);

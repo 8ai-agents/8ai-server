@@ -6,7 +6,6 @@ import {
 } from "@azure/functions";
 import { MessageRequest } from "../models/MessageRequest";
 import OpenAI from "openai";
-import { TextContentBlock } from "openai/resources/beta/threads/messages/messages";
 import { MessageResponse } from "../models/MessageResponse";
 import {
   ConversationStatusType,
@@ -17,7 +16,7 @@ import { db } from "../DatabaseController";
 
 export async function sendMessage(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const openai = new OpenAI({
@@ -25,14 +24,14 @@ export async function sendMessage(
     });
     const messageRequest = (await request.json()) as MessageRequest;
     context.log(
-      `Processing message for conversation ${messageRequest.conversation_id}`
+      `Processing message for conversation ${messageRequest.conversation_id}`,
     );
     const { interrupted, assistant_id } = await db
       .selectFrom("conversations")
       .innerJoin(
         "organisations",
         "conversations.organisation_id",
-        "organisations.id"
+        "organisations.id",
       )
       .where("conversations.id", "=", messageRequest.conversation_id)
       .select([
@@ -46,7 +45,7 @@ export async function sendMessage(
       ...new MessageResponse(
         messageRequest.conversation_id,
         messageRequest.message,
-        messageRequest.creator
+        messageRequest.creator,
       ),
       created_at: Date.now(),
       // TODO set user ID user_id
@@ -62,7 +61,7 @@ export async function sendMessage(
     } else {
       const thread_id = messageRequest.conversation_id.replace(
         "conv_",
-        "thread_"
+        "thread_",
       );
       await openai.beta.threads.messages.create(thread_id, {
         role: "user",
@@ -75,7 +74,7 @@ export async function sendMessage(
           assistant_id,
           instructions: "",
         },
-        { pollIntervalMs: 1000 }
+        { pollIntervalMs: 1000 },
       );
 
       const messageResponse: MessageResponse[] = [];
@@ -84,7 +83,7 @@ export async function sendMessage(
         const messages = await openai.beta.threads.messages.list(run.thread_id);
         for (const message of messages.data.slice(
           0,
-          messages.data.findIndex((m) => m.role === "user")
+          messages.data.findIndex((m) => m.role === "user"),
         )) {
           // Gets all messages from the assistant since last user message
           if (message.content[0].type === "text") {
@@ -93,8 +92,8 @@ export async function sendMessage(
                 messageRequest.conversation_id,
                 message.content[0].text.value,
                 MessageCreatorType.AGENT,
-                message.created_at * 1000
-              )
+                message.created_at * 1000,
+              ),
             );
           }
         }
@@ -131,7 +130,7 @@ export async function sendMessage(
 const saveMessageToDatabase = (
   requestToSave: NewMessage,
   responses: MessageResponse[] | undefined,
-  setInterrupted: boolean
+  setInterrupted: boolean,
 ) => {
   const responsesToSave: NewMessage[] = responses
     ? responses.map((r) => {
@@ -144,7 +143,7 @@ const saveMessageToDatabase = (
     db
       .insertInto("messages")
       .values(
-        responsesToSave ? [requestToSave, ...responsesToSave] : [requestToSave]
+        responsesToSave ? [requestToSave, ...responsesToSave] : [requestToSave],
       )
       .execute(),
     setInterrupted

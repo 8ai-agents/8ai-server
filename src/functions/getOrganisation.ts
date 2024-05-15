@@ -8,7 +8,7 @@ import { getOrganisation as retrieveOrganisation } from "../DatabaseController";
 
 export async function getOrganisation(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {

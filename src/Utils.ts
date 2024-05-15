@@ -5,7 +5,7 @@ import { UserRoleType } from "./models/Database";
 export const checkUserIsAdmin = async (
   org_id: string,
   email: string,
-  superAdminOnly: boolean = false
+  superAdminOnly: boolean = false,
 ) => {
   const { organisation_id, role } = await db
     .selectFrom("users")

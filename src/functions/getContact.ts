@@ -11,7 +11,7 @@ import { ConversationStatusType } from "../models/Database";
 
 export async function getContact(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);

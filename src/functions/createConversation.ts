@@ -12,7 +12,7 @@ import { ContactResponse } from "../models/ContactResponse";
 
 export async function createConversation(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const org_id = request.params.org_id;
@@ -25,7 +25,7 @@ export async function createConversation(
     const newContact: ContactResponse = new ContactResponse();
     const response: ConversationsResponse = new ConversationsResponse(
       thread.id,
-      newContact.name
+      newContact.name,
     );
 
     // Save to db

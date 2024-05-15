@@ -12,7 +12,7 @@ export class MessageResponse {
     conversation_id: string,
     message: string,
     creator: MessageCreatorType,
-    created_at?: number
+    created_at?: number,
   ) {
     this.id = createID("msg");
     this.conversation_id = conversation_id;
