@@ -87,6 +87,11 @@ export interface OrganisationTable {
   description: string;
   website: string;
   logo_url: string;
+  support_email: string;
+  support_phone: string;
+  chat_icon_color: string;
+  chat_bubble_color: string;
+  chat_text_color: string;
 }
 
 export type Organisation = Selectable<OrganisationTable>;

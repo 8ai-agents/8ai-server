@@ -11,7 +11,7 @@ import { db, getOrganisation, getUser } from "../DatabaseController";
 
 export async function updateOrganisation(
   request: HttpRequest,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);
@@ -32,7 +32,7 @@ export async function updateOrganisation(
       };
     }
     const orgToUpdate: OrganisationUpdate = await getOrganisation(
-      organisationRequest.id,
+      organisationRequest.id
     );
 
     context.log(`Updating organisation ${orgToUpdate.id}`);
@@ -43,6 +43,11 @@ export async function updateOrganisation(
     orgToUpdate.description = organisationRequest.description;
     orgToUpdate.logo_url = organisationRequest.logo_url;
     orgToUpdate.website = organisationRequest.website;
+    orgToUpdate.support_email = organisationRequest.support_email;
+    orgToUpdate.support_phone = organisationRequest.support_phone;
+    orgToUpdate.chat_icon_color = organisationRequest.chat_icon_color;
+    orgToUpdate.chat_bubble_color = organisationRequest.chat_bubble_color;
+    orgToUpdate.chat_text_color = organisationRequest.chat_text_color;
 
     await db
       .updateTable("organisations")

@@ -12,7 +12,7 @@ import { checkUserIsAdmin } from "../Utils";
 
 export async function getOrganisations(
   request: HttpRequest,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);
@@ -25,12 +25,7 @@ export async function getOrganisations(
 
   const results: OrganisationResponse[] = data.map((d) => {
     return {
-      id: d.id,
-      name: d.name,
-      assistant_id: d.assistant_id,
-      description: d.description,
-      website: d.website,
-      logo_url: d.logo_url,
+      ...d,
     };
   });
 
