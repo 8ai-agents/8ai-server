@@ -1,12 +1,12 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { db } from "../DatabaseController";
 import OpenAI from "openai";
-import { TextContentBlock } from "openai/resources/beta/threads/messages/messages";
 import { ConversationStatusType } from "../models/Database";
+import { TextContentBlock } from "openai/resources/beta/threads/messages";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<void> {
   context.log("Summarising Conversations");
 
@@ -26,7 +26,7 @@ export async function cronSummariseConversations(
     (c) =>
       !c.summary ||
       (c.last_message_at <= tenMinutesAgo &&
-        c.last_message_at >= twentyMinutesAgo),
+        c.last_message_at >= twentyMinutesAgo)
   )) {
     context.log(`Summarising Conversation ${id}`);
 
@@ -35,7 +35,7 @@ export async function cronSummariseConversations(
         apiKey: process.env.OPEN_API_KEY,
       });
       const organisation = organisationsAssistants.find(
-        (o) => o.id === organisation_id,
+        (o) => o.id === organisation_id
       );
       const thread_id = id.replace("conv_", "thread_");
 
@@ -56,10 +56,10 @@ export async function cronSummariseConversations(
 
         if (run.status === "completed") {
           const messagesResponse = await openai.beta.threads.messages.list(
-            run.thread_id,
+            run.thread_id
           );
           const content = messagesResponse.data[0].content.find(
-            (c) => c.type === "text",
+            (c) => c.type === "text"
           ) as TextContentBlock;
           const summary = content.text.value;
 
@@ -72,8 +72,8 @@ export async function cronSummariseConversations(
         } else if (run.status === "failed") {
           context.error(
             `Summarising Conversation Failed ${id} - ${JSON.stringify(
-              run.last_error,
-            )}`,
+              run.last_error
+            )}`
           );
         }
       }
@@ -81,7 +81,7 @@ export async function cronSummariseConversations(
     } catch (error: unknown) {
       const err = error as Error;
       context.error(
-        `Summarising Conversation Error ${id} - ${JSON.stringify(err.message)}`,
+        `Summarising Conversation Error ${id} - ${JSON.stringify(err.message)}`
       );
     }
   }

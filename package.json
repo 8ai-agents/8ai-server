@@ -1,5 +1,5 @@
 {
-  "name": "serverless",
+  "name": "8ai-backend",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -14,7 +14,7 @@
     "@azure/functions": "^4.0.0",
     "jose": "^5.2.4",
     "kysely": "^0.27.3",
-    "openai": "^4.29.2",
+    "openai": "^4.47.1",
     "pg": "^8.11.5",
     "unique-names-generator": "^4.7.1"
   },
