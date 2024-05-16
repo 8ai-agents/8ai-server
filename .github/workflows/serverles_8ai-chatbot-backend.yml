@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: 8ai-backend
-          path: dist/
+          path: dist/**
 
   deploy:
     runs-on: ubuntu-latest
