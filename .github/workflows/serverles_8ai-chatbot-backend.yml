@@ -5,17 +5,17 @@ name: Build and deploy Node.js project to Azure Function App - 8ai-chatbot-backe
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: "18.x" # set this to the node version to use (supports 8.x, 10.x, 12.x)
-  NODE_ENV: "production"
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: "Checkout GitHub Action"
         uses: actions/checkout@v4
@@ -25,20 +25,23 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: "Install"
-        run: npm install
-
-      - name: "Build"
-        run: npm run build
+      - name: "Resolve Project Dependencies Using Npm"
+        shell: pwsh
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm install
+          npm run build --if-present
+          npm run test --if-present
+          popd
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v3
         with:
-          name: 8ai-backend
-          path: dist/**
+          name: node-app
+          path: .
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: build
     environment:
       name: "Production"
@@ -50,7 +53,7 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v3
         with:
-          name: 8ai-backend
+          name: node-app
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -64,6 +67,5 @@ jobs:
         id: fa
         with:
           app-name: "8ai-chatbot-backend"
-          slot-name: "offline"
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_STAGING }}
+          slot-name: "Production"
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
