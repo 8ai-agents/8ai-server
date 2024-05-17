@@ -1,43 +1,71 @@
-import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import {
+  app,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
+import OpenAI from "openai";
+import type { FormDataEntryValue } from "undici";
+import { handleMessageForOpenAI } from "../openAIHandler";
+import { MessageCreatorType, NewMessage } from "../models/Database";
+import { MessageRequest } from "../models/MessageRequest";
 
-export async function sendMessageSlack(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    context.log(`Http function processed request for url "${request.url}"`);
+export async function sendMessageSlack(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  /*
+  const org_id = request.params.org_id as string;
+  if (!org_id) {
+    return {
+      status: 400,
+      jsonBody: {
+        error: "Must supply a valid conversation ID",
+      },
+    };
+  }
+  */
 
-    const name = request.query.get('name') || await request.text() || 'world';
-    const data = req.body;
+  let formData = await request.formData();
+  let data: FormDataEntryValue | null = formData.get("text");
+  if (data && typeof data == "string") {
+    context.log(`Processing message from Slack ${data}`);
+    const openai = new OpenAI({
+      apiKey: process.env.OPEN_API_KEY,
+    });
+    const thread = await openai.beta.threads.create();
+    const assistant_id = "asst_rkDgpBkruW7HZqC0wwesebY2";
+    const messageRequest: MessageRequest = {
+      conversation_id: thread.id,
+      message: data,
+      creator: MessageCreatorType.CONTACT,
+    };
+    const responses = await handleMessageForOpenAI(
+      messageRequest,
+      assistant_id,
+      "",
+      context
+    );
+    return {
+      status: 200,
+      jsonBody: {
+        response_type: "in_channel",
+        text: responses.map((r) => r.message).join("\n"),
+      },
+    };
+  }
 
-    if (data.challenge) {
-        return res.status(200).send(data.challenge);
-    }
-
-    if (data.event) {
-        const event = data.event;
-        if (event.type === 'message' && !event.subtype) {
-            const channelId = event.channel;
-            const userId = event.user;
-            const text = event.text;
-
-            try {
-                await client.chat.postMessage({
-                    channel: channelId,
-                    text: `Hello <@${userId}>! You said: ${text}`,
-                });
-            } catch (error) {
-                console.error(`Error posting message: ${error.message}`);
-            }
-        }
-    }
-
-    return res.status(200).send();
-});
-
-
-    return { body: `Hello, ${name}!` };
-};
+  return {
+    status: 500,
+    jsonBody: {
+      error: "Failed to send message",
+    },
+  };
+}
 
 app.http("sendMessageSlack", {
   methods: ["POST"],
   authLevel: "anonymous",
-  route: "chat/slack",
+  route: "/chat/slack",
   handler: sendMessageSlack,
 });
