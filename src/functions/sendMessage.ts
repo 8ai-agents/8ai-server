@@ -13,6 +13,10 @@ import {
   NewMessage,
 } from "../models/Database";
 import { db } from "../DatabaseController";
+import {
+  Message,
+  MessageContent,
+} from "openai/resources/beta/threads/messages";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -74,7 +78,6 @@ export async function sendMessage(
         {
           assistant_id,
           instructions: "",
-          //response_format: { type: "json_object" },
         },
         { pollIntervalMs: 1000 }
       );
@@ -123,12 +126,7 @@ export async function sendMessage(
           // Gets all messages from the assistant since last user message
           if (message.content[0].type === "text") {
             messageResponse.push(
-              new MessageResponse(
-                messageRequest.conversation_id,
-                message.content[0].text.value,
-                MessageCreatorType.AGENT,
-                message.created_at * 1000
-              )
+              processOpenAIMessage(message, messageRequest.conversation_id)
             );
           }
         }
@@ -161,6 +159,28 @@ export async function sendMessage(
     };
   }
 }
+
+const processOpenAIMessage = (
+  message: Message,
+  conversation_id: string
+): MessageResponse => {
+  if (message.content[0].type === "text") {
+    let messageTextContent = message.content[0].text.value;
+    if (message.content[0].text.annotations?.length > 0) {
+      // there are annotations that we should process
+      for (const annotation of message.content[0].text.annotations) {
+        // TODO process these instead of just stripping them
+        messageTextContent = messageTextContent.replace(annotation.text, "");
+      }
+    }
+    return new MessageResponse(
+      conversation_id,
+      messageTextContent,
+      MessageCreatorType.AGENT,
+      message.created_at * 1000
+    );
+  }
+};
 
 const saveMessageToDatabase = (
   requestToSave: NewMessage,
