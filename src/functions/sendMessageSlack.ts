@@ -6,9 +6,10 @@ import {
 } from "@azure/functions";
 import OpenAI from "openai";
 import type { FormDataEntryValue } from "undici";
-import { handleMessageForOpenAI } from "../openAIHandler";
+import { handleMessageForOpenAI, processOpenAIMessage } from "../openAIHandler";
 import { MessageCreatorType, NewMessage } from "../models/Database";
 import { MessageRequest } from "../models/MessageRequest";
+import { MessageResponse } from "../models/MessageResponse";
 
 export async function sendMessageSlack(
   request: HttpRequest,
@@ -33,24 +34,46 @@ export async function sendMessageSlack(
     const openai = new OpenAI({
       apiKey: process.env.OPEN_API_KEY,
     });
-    const thread = await openai.beta.threads.create();
     const assistant_id = "asst_rkDgpBkruW7HZqC0wwesebY2";
-    const messageRequest: MessageRequest = {
-      conversation_id: thread.id,
-      message: data,
-      creator: MessageCreatorType.CONTACT,
-    };
-    const responses = await handleMessageForOpenAI(
-      messageRequest,
-      assistant_id,
-      "",
-      context
+    const thread = await openai.beta.threads.createAndRunPoll(
+      {
+        assistant_id,
+        instructions: "",
+        thread: {
+          messages: [
+            {
+              role: "user",
+              content: data,
+            },
+          ],
+        },
+      },
+      { pollIntervalMs: 300 }
     );
+    const messageResponse: MessageResponse[] = [];
+
+    if (thread.status === "completed") {
+      const messages = await openai.beta.threads.messages.list(
+        thread.thread_id
+      );
+      for (const message of messages.data.slice(
+        0,
+        messages.data.findIndex((m) => m.role === "user")
+      )) {
+        // Gets all messages from the assistant since last user message
+        if (message.content[0].type === "text") {
+          messageResponse.push(processOpenAIMessage(message, ""));
+        }
+      }
+    } else {
+      context.error(thread.status);
+      throw new Error("OpenAI request failed");
+    }
     return {
       status: 200,
       jsonBody: {
         response_type: "in_channel",
-        text: responses.map((r) => r.message).join("\n"),
+        text: messageResponse.map((r) => r.message).join("\n"),
       },
     };
   }

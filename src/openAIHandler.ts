@@ -88,7 +88,7 @@ export const handleMessageForOpenAI = async (
   return messageResponse;
 };
 
-const processOpenAIMessage = (
+export const processOpenAIMessage = (
   message: Message,
   conversation_id: string
 ): MessageResponse => {
