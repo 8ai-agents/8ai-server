@@ -1,13 +1,13 @@
 # 8ai Chatbot Backend
 
 ```
-yarn
+npm i
 ```
 
 ## Development
 
 ```
-yarn dev
+npm run dev
 ```
 
 ## Running Locally
