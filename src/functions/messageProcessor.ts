@@ -60,7 +60,10 @@ const processSlackMessage = async (
     method: "POST",
     body: JSON.stringify({
       response_type: "in_channel",
-      text: messageResponse.map((r) => r.message).join("\n"),
+      replace_original: true,
+      text:
+        messageResponse.map((r) => r.message).join("\n") +
+        ". If this solved your question give the message a  :white_tick:",
     }),
     headers: {
       "Content-type": "application/json; charset=UTF-8",
