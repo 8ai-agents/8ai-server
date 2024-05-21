@@ -8,7 +8,7 @@ export async function messageProcessor(
   context: InvocationContext
 ): Promise<void> {
   if (event.eventType === "Message.Slack") {
-    context.log("Incomming Slack Message: ", event);
+    context.log("Incoming Slack Message: ", event);
     await processSlackMessage(event, context);
   } else {
     context.log("Don't know how to process this event: ", event);
@@ -48,7 +48,7 @@ const processSlackMessage = async (
     )) {
       // Gets all messages from the assistant since last user message
       if (message.content[0].type === "text") {
-        messageResponse.push(processOpenAIMessage(message, ""));
+        messageResponse.push(await processOpenAIMessage(message, "", openai));
       }
     }
   } else {

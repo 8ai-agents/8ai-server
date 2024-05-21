@@ -12,12 +12,11 @@ import { ContactResponse } from "../models/ContactResponse";
 
 export async function createConversation(
   request: HttpRequest,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
     const org_id = request.params.org_id;
     context.log(`Creating new conversation for org ${org_id}`);
-    // TODO get API key from Org ID
     const openai = new OpenAI({
       apiKey: process.env.OPEN_API_KEY,
     });
@@ -25,7 +24,7 @@ export async function createConversation(
     const newContact: ContactResponse = new ContactResponse();
     const response: ConversationsResponse = new ConversationsResponse(
       thread.id,
-      newContact.name,
+      newContact.name
     );
 
     // Save to db

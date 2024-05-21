@@ -30,7 +30,7 @@ export const db = new Kysely<Database>({
 });
 
 export const getFullConversation = async (
-  conv_id: string,
+  conv_id: string
 ): Promise<ConversationResponse> => {
   const conversationData = await db
     .selectFrom("conversations")
@@ -73,7 +73,7 @@ export const getFullConversation = async (
 };
 
 export const getMessagesForConversation = async (
-  conv_id: string,
+  conv_id: string
 ): Promise<MessageResponse[]> => {
   const data = await db
     .selectFrom("messages")
@@ -83,17 +83,14 @@ export const getMessagesForConversation = async (
 
   return data.map((m) => {
     return {
-      id: m.id,
+      ...m,
       conversation_id: conv_id,
-      message: m.message,
-      created_at: m.created_at,
-      creator: m.creator,
     };
   });
 };
 
 export const getOrganisation = async (
-  org_id: string,
+  org_id: string
 ): Promise<OrganisationResponse> => {
   const data = await db
     .selectFrom("organisations")

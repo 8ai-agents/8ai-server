@@ -6,9 +6,14 @@ import {
 } from "@azure/functions";
 import { MessageRequest } from "../models/MessageRequest";
 import { MessageResponse } from "../models/MessageResponse";
-import { ConversationStatusType, NewMessage } from "../models/Database";
+import {
+  ConversationStatusType,
+  MessageCreatorType,
+  NewMessage,
+} from "../models/Database";
 import { db } from "../DatabaseController";
 import { handleMessageForOpenAI } from "../openAIHandler";
+import { authenticateRequest } from "../AuthController";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -16,6 +21,21 @@ export async function sendMessage(
 ): Promise<HttpResponseInit> {
   try {
     const messageRequest = (await request.json()) as MessageRequest;
+    let user_id: string | undefined = undefined;
+    if (messageRequest.creator === MessageCreatorType.USER) {
+      // We need to retrieve userID from token
+      const { email } = await authenticateRequest(request);
+      if (email) {
+        const { id } = await db
+          .selectFrom("users")
+          .where("email", "=", email)
+          .select("id")
+          .executeTakeFirst();
+        if (id) {
+          user_id = id;
+        }
+      }
+    }
     context.log(
       `Processing message for conversation ${messageRequest.conversation_id}`
     );
@@ -42,7 +62,7 @@ export async function sendMessage(
         messageRequest.creator
       ),
       created_at: Date.now(),
-      // TODO set user ID user_id
+      user_id,
     };
 
     if (interrupted || messageRequest.creator === "USER") {

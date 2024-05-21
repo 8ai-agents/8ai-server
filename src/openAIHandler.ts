@@ -76,7 +76,11 @@ export const handleMessageForOpenAI = async (
       // Gets all messages from the assistant since last user message
       if (message.content[0].type === "text") {
         messageResponse.push(
-          processOpenAIMessage(message, messageRequest.conversation_id)
+          await processOpenAIMessage(
+            message,
+            messageRequest.conversation_id,
+            openai
+          )
         );
       }
     }
@@ -88,16 +92,24 @@ export const handleMessageForOpenAI = async (
   return messageResponse;
 };
 
-export const processOpenAIMessage = (
+export const processOpenAIMessage = async (
   message: Message,
-  conversation_id: string
-): MessageResponse => {
+  conversation_id: string,
+  openai: OpenAI
+): Promise<MessageResponse> => {
   if (message.content[0].type === "text") {
     let messageTextContent = message.content[0].text.value;
     if (message.content[0].text.annotations?.length > 0) {
       // there are annotations that we should process
       for (const annotation of message.content[0].text.annotations) {
-        // TODO process these instead of just stripping them
+        /*
+        if (annotation.type === "file_citation" && annotation.file_citation) {
+          const citedFileContent = await openai.files.content(
+            annotation.file_citation.file_id
+          );
+          console.log(citedFileContent);
+        }
+        */
         messageTextContent = messageTextContent.replace(annotation.text, "");
       }
     }
@@ -109,6 +121,18 @@ export const processOpenAIMessage = (
     );
   }
 };
+
+/*
+for (let annotation of annotations) {
+        text.value = text.value.replace(annotation.text, "[" + index + "]");
+        const { file_citation } = annotation;
+        if (file_citation) {
+          const citedFile = await openai.files.retrieve(file_citation.file_id);
+          citations.push("[" + index + "]" + citedFile.filename);
+        }
+        index++;
+      }
+      */
 
 type SaveContactDetailsPayload = {
   name?: string;
