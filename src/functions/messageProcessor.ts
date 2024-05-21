@@ -63,7 +63,7 @@ const processSlackMessage = async (
       replace_original: true,
       text:
         messageResponse.map((r) => r.message).join("\n") +
-        ". If this solved your question give the message a  :white_tick:",
+        " If this solved your question give the message a :white_tick:",
     }),
     headers: {
       "Content-type": "application/json; charset=UTF-8",
