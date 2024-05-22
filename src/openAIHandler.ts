@@ -105,15 +105,26 @@ export const processOpenAIMessage = async (
           context.log(
             `File citation found for file id ${annotation.file_citation.file_id}`
           );
-          const { url } = await db
-            .selectFrom("organisation_files")
-            .select(["url"])
-            .where("id", "=", annotation.file_citation.file_id)
-            .executeTakeFirst();
-          messageTextContent = messageTextContent.replace(
-            annotation.text,
-            ` [(view source)](${url})`
-          );
+          try {
+            const { url } = await db
+              .selectFrom("organisation_files")
+              .select(["url"])
+              .where("id", "=", annotation.file_citation.file_id)
+              .executeTakeFirst();
+            messageTextContent = messageTextContent.replace(
+              annotation.text,
+              ` [(view source)](${url})`
+            );
+          } catch {
+            context.log(
+              `Couldn't find file URL for ${annotation.file_citation.file_id}`
+            );
+            // Can't find the file
+            messageTextContent = messageTextContent.replace(
+              annotation.text,
+              ""
+            );
+          }
         }
       }
     }
