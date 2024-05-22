@@ -49,12 +49,12 @@ export async function updateOrganisation(
     orgToUpdate.chat_icon_color = organisationRequest.chat_icon_color;
     orgToUpdate.chat_bubble_color = organisationRequest.chat_bubble_color;
     orgToUpdate.chat_text_color = organisationRequest.chat_text_color;
-    if (organisationRequest.fine_tuning_data !== orgToUpdate.fine_tuning_data) {
-      // Fine tuning data has changed, update OpenAI
+    if (organisationRequest.fine_tuning_data) {
+      // Fine tuning data has been updated, update OpenAI
       orgToUpdate.fine_tuning_filename =
         organisationRequest.fine_tuning_filename;
-      orgToUpdate.fine_tuning_data = organisationRequest.fine_tuning_data;
       await updateAssistantFile(
+        organisationRequest.id,
         organisationRequest.assistant_id,
         organisationRequest.fine_tuning_filename,
         organisationRequest.fine_tuning_data

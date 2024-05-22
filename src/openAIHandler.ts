@@ -2,7 +2,7 @@ import OpenAI, { toFile } from "openai";
 import { MessageRequest } from "./models/MessageRequest";
 import { MessageResponse } from "./models/MessageResponse";
 import { InvocationContext } from "@azure/functions";
-import { MessageCreatorType } from "./models/Database";
+import { MessageCreatorType, NewOrganisationFile } from "./models/Database";
 import { db } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
 import { AssistantTool } from "openai/resources/beta/assistants";
@@ -119,6 +119,7 @@ export const processOpenAIMessage = async (
 };
 
 export const createAssistant = async (
+  organisation_id: string,
   organisation_name: string,
   filename: string,
   filedata: string
@@ -140,7 +141,12 @@ export const createAssistant = async (
     });
 
     if (filedata) {
-      await updateAssistantFile(myAssistant.id, filename, filedata);
+      await updateAssistantFile(
+        organisation_id,
+        myAssistant.id,
+        filename,
+        filedata
+      );
     }
     return myAssistant.id;
   } catch (e) {
@@ -150,6 +156,7 @@ export const createAssistant = async (
 };
 
 export const updateAssistantFile = async (
+  organisation_id: string,
   assistant_id: string,
   filename: string,
   filedata: string
@@ -157,8 +164,9 @@ export const updateAssistantFile = async (
   const openai = new OpenAI({
     apiKey: process.env.OPEN_API_KEY,
   });
+  let jsonData = {};
   try {
-    const jsonData = JSON.parse(filedata);
+    jsonData = JSON.parse(filedata);
   } catch {
     throw "File is not a valid JSON";
   }
@@ -181,15 +189,43 @@ export const updateAssistantFile = async (
         await openai.beta.vectorStores.del(vector_store_id);
       }
     }
-    // add new file
-    const newFile = await openai.files.create({
-      file: await toFile(Buffer.from(filedata), filename),
-      purpose: "assistants",
-    });
+    await db
+      .deleteFrom("organisation_files")
+      .where("organisation_id", "=", organisation_id)
+      .execute();
+
+    // add new files
+
+    let newOrganisationFiles: NewOrganisationFile[] = [];
+
+    let i = 0;
+    for (const key in jsonData) {
+      try {
+        const content: { text: string } = { text: jsonData[key] };
+        const newFile = await openai.files.create({
+          file: await toFile(
+            Buffer.from(JSON.stringify(content)),
+            `${assistant_id}-${i}.jsonl`
+          ),
+          purpose: "assistants",
+        });
+
+        newOrganisationFiles.push({
+          id: newFile.id,
+          organisation_id,
+          url: key,
+          content: jsonData[key],
+        });
+        i++;
+      } catch {
+        // carry on with others
+      }
+    }
+
     // create a new vector store
     const newVectorStore = await openai.beta.vectorStores.create({
       name: `vs_for_${assistant_id}`,
-      file_ids: [newFile.id],
+      file_ids: newOrganisationFiles.map((f) => f.id),
     });
     await openai.beta.assistants.update(assistant_id, {
       tools: getToolModel(true),
@@ -199,8 +235,11 @@ export const updateAssistantFile = async (
         },
       },
     });
+    await db
+      .insertInto("organisation_files")
+      .values(newOrganisationFiles)
+      .execute();
   } catch (e) {
-    console.error(`Failed to update assistant in OpenAI: ${e.message}`);
     throw "Failed to update AI assistant";
   }
 };

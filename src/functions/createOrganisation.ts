@@ -25,20 +25,6 @@ export async function createOrganisation(
   try {
     const organisationRequest = (await request.json()) as OrganisationRequest;
 
-    if (!organisationRequest.assistant_id) {
-      // Create a new assistant using OpenAI's JS SDK
-      try {
-        const assistant_id = await createAssistant(
-          organisationRequest.name,
-          organisationRequest.fine_tuning_filename,
-          organisationRequest.fine_tuning_data
-        );
-        organisationRequest.assistant_id = assistant_id;
-      } catch (e) {
-        context.error(`Failed to create assistant in OpenAI: ${e.message}`);
-      }
-    }
-
     context.log(`Creating organisation ${organisationRequest.name}`);
     const organisationToSave: NewOrganisation = {
       ...organisationRequest,
@@ -48,6 +34,26 @@ export async function createOrganisation(
       .insertInto("organisations")
       .values(organisationToSave)
       .executeTakeFirst();
+
+    if (!organisationRequest.assistant_id) {
+      // Create a new assistant using OpenAI's JS SDK
+      try {
+        const assistant_id = await createAssistant(
+          organisationToSave.id,
+          organisationRequest.name,
+          organisationRequest.fine_tuning_filename,
+          organisationRequest.fine_tuning_data
+        );
+        // save assistant ID to org
+        await db
+          .updateTable("organisations")
+          .set({ assistant_id })
+          .where("id", "=", organisationToSave.id)
+          .execute();
+      } catch (e) {
+        context.error(`Failed to create assistant in OpenAI: ${e.message}`);
+      }
+    }
 
     const jsonBody = await getOrganisation(organisationToSave.id);
     return { status: 200, jsonBody };

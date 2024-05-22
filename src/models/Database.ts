@@ -6,6 +6,7 @@ export interface Database {
   messages: MessageTable;
   users: UserTable;
   organisations: OrganisationTable;
+  organisation_files: OrganisationFileTable;
 }
 
 export interface ContactTable {
@@ -94,9 +95,18 @@ export interface OrganisationTable {
   chat_bubble_color: string;
   chat_text_color: string;
   fine_tuning_filename: string;
-  fine_tuning_data: string; // Actually a JSON string
 }
 
 export type Organisation = Selectable<OrganisationTable>;
 export type NewOrganisation = Insertable<OrganisationTable>;
 export type OrganisationUpdate = Updateable<OrganisationTable>;
+
+export interface OrganisationFileTable {
+  id: string;
+  organisation_id: string;
+  url: string;
+  content: string;
+}
+
+export type OrganisationFile = Selectable<OrganisationFileTable>;
+export type NewOrganisationFile = Insertable<OrganisationFileTable>;
