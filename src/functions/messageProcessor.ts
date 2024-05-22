@@ -48,7 +48,7 @@ const processSlackMessage = async (
     )) {
       // Gets all messages from the assistant since last user message
       if (message.content[0].type === "text") {
-        messageResponse.push(await processOpenAIMessage(message, "", openai));
+        messageResponse.push(await processOpenAIMessage(message, "", context));
       }
     }
   } else {

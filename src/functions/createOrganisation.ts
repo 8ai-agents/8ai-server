@@ -9,7 +9,7 @@ import { NewOrganisation } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { db, getOrganisation } from "../DatabaseController";
 import { checkUserIsAdmin, createID } from "../Utils";
-import OpenAI from "openai";
+import { createAssistant } from "../openAIHandler";
 
 export async function createOrganisation(
   request: HttpRequest,
@@ -28,46 +28,12 @@ export async function createOrganisation(
     if (!organisationRequest.assistant_id) {
       // Create a new assistant using OpenAI's JS SDK
       try {
-        const openai = new OpenAI({
-          apiKey: process.env.OPEN_API_KEY,
-        });
-        const myAssistant = await openai.beta.assistants.create({
-          name: `8ai-${organisationRequest.name
-            .trim()
-            .split(" ")
-            .join("-")
-            .toLowerCase()}`,
-          instructions: `You are a customer support agent for ${organisationRequest.name}. Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a phone number for a call back by an expert within 2 business days.`,
-          model: "gpt-4o",
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "save_contact_details",
-                description: "Save contact details of user to database",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    name: {
-                      type: "string",
-                      description: "The user's name",
-                    },
-                    email: {
-                      type: "string",
-                      description: "The user's email",
-                    },
-                    phone: {
-                      type: "string",
-                      description: "The user's phone number",
-                    },
-                  },
-                  required: [],
-                },
-              },
-            },
-          ],
-        });
-        organisationRequest.assistant_id = myAssistant.id;
+        const assistant_id = await createAssistant(
+          organisationRequest.name,
+          organisationRequest.fine_tuning_filename,
+          organisationRequest.fine_tuning_data
+        );
+        organisationRequest.assistant_id = assistant_id;
       } catch (e) {
         context.error(`Failed to create assistant in OpenAI: ${e.message}`);
       }

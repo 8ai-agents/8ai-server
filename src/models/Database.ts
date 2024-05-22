@@ -93,6 +93,8 @@ export interface OrganisationTable {
   chat_icon_color: string;
   chat_bubble_color: string;
   chat_text_color: string;
+  fine_tuning_filename: string;
+  fine_tuning_data: string; // Actually a JSON string
 }
 
 export type Organisation = Selectable<OrganisationTable>;

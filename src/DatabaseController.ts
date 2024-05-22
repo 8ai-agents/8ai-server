@@ -95,7 +95,20 @@ export const getOrganisation = async (
   const data = await db
     .selectFrom("organisations")
     .where("organisations.id", "=", org_id)
-    .selectAll()
+    .select([
+      "id",
+      "name",
+      "assistant_id",
+      "description",
+      "website",
+      "logo_url",
+      "support_email",
+      "support_phone",
+      "chat_icon_color",
+      "chat_bubble_color",
+      "chat_text_color",
+      "fine_tuning_filename",
+    ])
     .executeTakeFirstOrThrow();
 
   const result: OrganisationResponse = {

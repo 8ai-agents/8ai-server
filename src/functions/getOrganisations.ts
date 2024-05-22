@@ -21,7 +21,23 @@ export async function getOrganisations(
     return { status: 401 };
   }
 
-  const data = await db.selectFrom("organisations").selectAll().execute();
+  const data = await db
+    .selectFrom("organisations")
+    .select([
+      "id",
+      "name",
+      "assistant_id",
+      "description",
+      "website",
+      "logo_url",
+      "support_email",
+      "support_phone",
+      "chat_icon_color",
+      "chat_bubble_color",
+      "chat_text_color",
+      "fine_tuning_filename",
+    ])
+    .execute();
 
   const results: OrganisationResponse[] = data.map((d) => {
     return {

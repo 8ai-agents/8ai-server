@@ -1,14 +1,11 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { MessageRequest } from "./models/MessageRequest";
 import { MessageResponse } from "./models/MessageResponse";
 import { InvocationContext } from "@azure/functions";
-import {
-  ConversationStatusType,
-  MessageCreatorType,
-  NewMessage,
-} from "./models/Database";
+import { MessageCreatorType } from "./models/Database";
 import { db } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
+import { AssistantTool } from "openai/resources/beta/assistants";
 
 export const handleMessageForOpenAI = async (
   messageRequest: MessageRequest,
@@ -68,7 +65,9 @@ export const handleMessageForOpenAI = async (
   }
 
   if (run.status === "completed") {
-    const messages = await openai.beta.threads.messages.list(run.thread_id);
+    const messages = await openai.beta.threads.messages.list(run.thread_id, {
+      limit: 5,
+    });
     for (const message of messages.data.slice(
       0,
       messages.data.findIndex((m) => m.role === "user")
@@ -79,7 +78,7 @@ export const handleMessageForOpenAI = async (
           await processOpenAIMessage(
             message,
             messageRequest.conversation_id,
-            openai
+            context
           )
         );
       }
@@ -95,21 +94,18 @@ export const handleMessageForOpenAI = async (
 export const processOpenAIMessage = async (
   message: Message,
   conversation_id: string,
-  openai: OpenAI
+  context: InvocationContext
 ): Promise<MessageResponse> => {
   if (message.content[0].type === "text") {
     let messageTextContent = message.content[0].text.value;
     if (message.content[0].text.annotations?.length > 0) {
       // there are annotations that we should process
       for (const annotation of message.content[0].text.annotations) {
-        /*
         if (annotation.type === "file_citation" && annotation.file_citation) {
-          const citedFileContent = await openai.files.content(
-            annotation.file_citation.file_id
+          context.log(
+            `File citation found "${annotation.file_citation.quote}", starting at ${annotation.start_index} and ending at ${annotation.end_index}`
           );
-          console.log(citedFileContent);
         }
-        */
         messageTextContent = messageTextContent.replace(annotation.text, "");
       }
     }
@@ -122,17 +118,92 @@ export const processOpenAIMessage = async (
   }
 };
 
-/*
-for (let annotation of annotations) {
-        text.value = text.value.replace(annotation.text, "[" + index + "]");
-        const { file_citation } = annotation;
-        if (file_citation) {
-          const citedFile = await openai.files.retrieve(file_citation.file_id);
-          citations.push("[" + index + "]" + citedFile.filename);
+export const createAssistant = async (
+  organisation_name: string,
+  filename: string,
+  filedata: string
+) => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+
+  try {
+    const myAssistant = await openai.beta.assistants.create({
+      name: `8ai-${organisation_name
+        .trim()
+        .split(" ")
+        .join("-")
+        .toLowerCase()}`,
+      instructions: `You are a customer support agent for ${organisation_name}. Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a phone number for a call back by an expert within 2 business days.`,
+      model: "gpt-4o",
+      tools: getToolModel(false),
+    });
+
+    if (filedata) {
+      await updateAssistantFile(myAssistant.id, filename, filedata);
+    }
+    return myAssistant.id;
+  } catch (e) {
+    console.error(`Failed to create assistant in OpenAI: ${e.message}`);
+    throw "Failed to create AI assistant";
+  }
+};
+
+export const updateAssistantFile = async (
+  assistant_id: string,
+  filename: string,
+  filedata: string
+) => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+  try {
+    const jsonData = JSON.parse(filedata);
+  } catch {
+    throw "File is not a valid JSON";
+  }
+
+  try {
+    const assistant = await openai.beta.assistants.retrieve(assistant_id);
+    if (assistant.tools?.some((t) => t.type === "file_search")) {
+      // Delete existing files attached to this vector store
+      for (const vector_store_id of assistant.tool_resources.file_search
+        .vector_store_ids) {
+        const files = await openai.beta.vectorStores.files.list(
+          vector_store_id,
+          {
+            limit: 100,
+          }
+        );
+        for (const file of files.data) {
+          await openai.files.del(file.id);
         }
-        index++;
+        await openai.beta.vectorStores.del(vector_store_id);
       }
-      */
+    }
+    // add new file
+    const newFile = await openai.files.create({
+      file: await toFile(Buffer.from(filedata), filename),
+      purpose: "assistants",
+    });
+    // create a new vector store
+    const newVectorStore = await openai.beta.vectorStores.create({
+      name: `vs_for_${assistant_id}`,
+      file_ids: [newFile.id],
+    });
+    await openai.beta.assistants.update(assistant_id, {
+      tools: getToolModel(true),
+      tool_resources: {
+        file_search: {
+          vector_store_ids: [newVectorStore.id],
+        },
+      },
+    });
+  } catch (e) {
+    console.error(`Failed to update assistant in OpenAI: ${e.message}`);
+    throw "Failed to update AI assistant";
+  }
+};
 
 type SaveContactDetailsPayload = {
   name?: string;
@@ -159,4 +230,65 @@ const saveContactDetails = async (
   } catch (error) {
     return "Can't parse details";
   }
+};
+
+const getToolModel = (hasFile: boolean): AssistantTool[] => {
+  return hasFile
+    ? [
+        {
+          type: "file_search",
+        },
+        {
+          type: "function",
+          function: {
+            name: "save_contact_details",
+            description: "Save contact details of user to database",
+            parameters: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "The user's name",
+                },
+                email: {
+                  type: "string",
+                  description: "The user's email",
+                },
+                phone: {
+                  type: "string",
+                  description: "The user's phone number",
+                },
+              },
+              required: [],
+            },
+          },
+        },
+      ]
+    : [
+        {
+          type: "function",
+          function: {
+            name: "save_contact_details",
+            description: "Save contact details of user to database",
+            parameters: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "The user's name",
+                },
+                email: {
+                  type: "string",
+                  description: "The user's email",
+                },
+                phone: {
+                  type: "string",
+                  description: "The user's phone number",
+                },
+              },
+              required: [],
+            },
+          },
+        },
+      ];
 };
