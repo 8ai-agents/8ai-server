@@ -103,10 +103,18 @@ export const processOpenAIMessage = async (
       for (const annotation of message.content[0].text.annotations) {
         if (annotation.type === "file_citation" && annotation.file_citation) {
           context.log(
-            `File citation found "${annotation.file_citation.quote}", starting at ${annotation.start_index} and ending at ${annotation.end_index}`
+            `File citation found for file id ${annotation.file_citation.file_id}`
+          );
+          const { url } = await db
+            .selectFrom("organisation_files")
+            .select(["url"])
+            .where("id", "=", annotation.file_citation.file_id)
+            .executeTakeFirst();
+          messageTextContent = messageTextContent.replace(
+            annotation.text,
+            ` [(view source)](${url})`
           );
         }
-        messageTextContent = messageTextContent.replace(annotation.text, "");
       }
     }
     return new MessageResponse(
@@ -205,7 +213,7 @@ export const updateAssistantFile = async (
         const newFile = await openai.files.create({
           file: await toFile(
             Buffer.from(JSON.stringify(content)),
-            `${assistant_id}-${i}.jsonl`
+            `${assistant_id}-${i}.json`
           ),
           purpose: "assistants",
         });
