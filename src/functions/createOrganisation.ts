@@ -41,7 +41,6 @@ export async function createOrganisation(
         const assistant_id = await createAssistant(
           organisationToSave.id,
           organisationRequest.name,
-          organisationRequest.fine_tuning_filename,
           organisationRequest.fine_tuning_data
         );
         // save assistant ID to org

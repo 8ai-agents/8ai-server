@@ -140,7 +140,6 @@ export const processOpenAIMessage = async (
 export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
-  filename: string,
   filedata: string
 ) => {
   const openai = new OpenAI({
@@ -160,12 +159,7 @@ export const createAssistant = async (
     });
 
     if (filedata) {
-      await updateAssistantFile(
-        organisation_id,
-        myAssistant.id,
-        filename,
-        filedata
-      );
+      await updateAssistantFile(organisation_id, myAssistant.id, filedata);
     }
     return myAssistant.id;
   } catch (e) {
@@ -177,15 +171,31 @@ export const createAssistant = async (
 export const updateAssistantFile = async (
   organisation_id: string,
   assistant_id: string,
-  filename: string,
   filedata: string
 ) => {
   const openai = new OpenAI({
     apiKey: process.env.OPEN_API_KEY,
   });
-  let jsonData = {};
+  let jsonData: {
+    name: string;
+    url: string;
+    content: string;
+  }[] = [];
   try {
     jsonData = JSON.parse(filedata);
+    if (
+      !Array.isArray(jsonData) ||
+      !jsonData.every((item) => {
+        return (
+          typeof item === "object" &&
+          typeof item.name === "string" &&
+          typeof item.url === "string" &&
+          typeof item.content === "string"
+        );
+      })
+    ) {
+      throw "File is not in the valid JSON format";
+    }
   } catch {
     throw "File is not a valid JSON";
   }
@@ -218,9 +228,10 @@ export const updateAssistantFile = async (
     let newOrganisationFiles: NewOrganisationFile[] = [];
 
     let i = 0;
-    for (const key in jsonData) {
+    // Can only take 100 files here
+    for (const jsonItem of jsonData.slice(0, 100)) {
       try {
-        const content: { text: string } = { text: jsonData[key] };
+        const content: { text: string } = { text: jsonItem.content };
         const newFile = await openai.files.create({
           file: await toFile(
             Buffer.from(JSON.stringify(content)),
@@ -232,8 +243,9 @@ export const updateAssistantFile = async (
         newOrganisationFiles.push({
           id: newFile.id,
           organisation_id,
-          url: key,
-          content: jsonData[key],
+          name: jsonItem.name,
+          url: jsonItem.url,
+          content: jsonItem.content,
         });
         i++;
       } catch {
@@ -259,7 +271,7 @@ export const updateAssistantFile = async (
       .values(newOrganisationFiles)
       .execute();
   } catch (e) {
-    throw "Failed to update AI assistant";
+    throw `Failed to update AI assistant ${e.message}`;
   }
 };
 
