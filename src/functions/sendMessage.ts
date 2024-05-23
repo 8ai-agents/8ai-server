@@ -63,6 +63,7 @@ export async function sendMessage(
       ),
       created_at: Date.now(),
       user_id,
+      citations: undefined,
     };
 
     if (interrupted || messageRequest.creator === "USER") {
@@ -108,8 +109,14 @@ const saveMessageToDatabase = (
   const responsesToSave: NewMessage[] = responses
     ? responses.map((r) => {
         return {
-          ...r,
-        } as NewMessage;
+          id: r.id,
+          conversation_id: r.conversation_id,
+          message: r.message,
+          created_at: r.created_at,
+          creator: r.creator,
+          version: r.version,
+          citations: r.citations ? JSON.stringify(r.citations) : undefined,
+        };
       })
     : undefined;
   return Promise.all([

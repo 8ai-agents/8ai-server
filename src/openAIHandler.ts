@@ -1,6 +1,9 @@
 import OpenAI, { toFile } from "openai";
 import { MessageRequest } from "./models/MessageRequest";
-import { MessageResponse } from "./models/MessageResponse";
+import {
+  MessageResponse,
+  MessageResponseCitation,
+} from "./models/MessageResponse";
 import { InvocationContext } from "@azure/functions";
 import { MessageCreatorType, NewOrganisationFile } from "./models/Database";
 import { db } from "./DatabaseController";
@@ -97,6 +100,7 @@ export const processOpenAIMessage = async (
   context: InvocationContext
 ): Promise<MessageResponse> => {
   if (message.content[0].type === "text") {
+    let citations: MessageResponseCitation[] | undefined = undefined;
     let messageTextContent = message.content[0].text.value;
     if (message.content[0].text.annotations?.length > 0) {
       // there are annotations that we should process
@@ -106,15 +110,36 @@ export const processOpenAIMessage = async (
             `File citation found for file id ${annotation.file_citation.file_id}`
           );
           try {
-            const { url } = await db
+            const { name, url } = await db
               .selectFrom("organisation_files")
-              .select(["url"])
+              .select(["name", "url"])
               .where("id", "=", annotation.file_citation.file_id)
               .executeTakeFirst();
-            messageTextContent = messageTextContent.replace(
-              annotation.text,
-              ` [(view source)](${url})`
+
+            if (!citations) {
+              citations = [];
+            }
+            const existingCitation = citations.find(
+              (c) => c.url === url && c.name === name
             );
+            if (existingCitation) {
+              // citation already exists, don't add it again
+              messageTextContent = messageTextContent.replace(
+                annotation.text,
+                `【${existingCitation.id}】`
+              );
+            } else {
+              const citation_id = citations.length + 1;
+              citations.push({
+                id: citation_id,
+                name,
+                url,
+              });
+              messageTextContent = messageTextContent.replace(
+                annotation.text,
+                `【${citation_id}】`
+              );
+            }
           } catch {
             context.log(
               `Couldn't find file URL for ${annotation.file_citation.file_id}`
@@ -132,7 +157,8 @@ export const processOpenAIMessage = async (
       conversation_id,
       messageTextContent,
       MessageCreatorType.AGENT,
-      message.created_at * 1000
+      message.created_at * 1000,
+      citations
     );
   }
 };

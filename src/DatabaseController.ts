@@ -85,6 +85,7 @@ export const getMessagesForConversation = async (
     return {
       ...m,
       conversation_id: conv_id,
+      citations: m.citations ? JSON.parse(m.citations) : undefined,
     };
   });
 };

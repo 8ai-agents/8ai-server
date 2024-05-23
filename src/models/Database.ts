@@ -52,6 +52,7 @@ export interface MessageTable {
   creator: MessageCreatorType;
   user_id: string | undefined;
   version: number;
+  citations: string | undefined;
 }
 
 export enum MessageCreatorType {
