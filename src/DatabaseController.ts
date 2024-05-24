@@ -84,6 +84,7 @@ export const getMessagesForConversation = async (
   return data.map((m) => {
     return {
       ...m,
+      user_id: m.user_id ? m.user_id : undefined,
       conversation_id: conv_id,
       citations: m.citations ? JSON.parse(m.citations) : undefined,
     };

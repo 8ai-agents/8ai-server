@@ -13,6 +13,7 @@ export class MessageResponse {
   message: string;
   created_at: number;
   creator: MessageCreatorType;
+  user_id: string | undefined;
   version: number;
   citations?: MessageResponseCitation[];
 
