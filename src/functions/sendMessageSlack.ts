@@ -27,9 +27,10 @@ export async function sendMessageSlack(
       };
     }
 
-    let formData = await request.formData();
-    let data: FormDataEntryValue | null = formData.get("text");
-    let response_url: FormDataEntryValue | null = formData.get("response_url");
+    const formData = await request.formData();
+    const data: FormDataEntryValue | null = formData.get("text");
+    const response_url: FormDataEntryValue | null =
+      formData.get("response_url");
     if (
       data &&
       typeof data == "string" &&

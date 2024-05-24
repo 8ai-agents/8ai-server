@@ -7,12 +7,13 @@ import {
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import { db } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
-import { ConversationStatusType, UserRoleType } from "../models/Database";
+import { ConversationStatusType } from "../models/Database";
 import { checkUserIsAdmin } from "../Utils";
 
 export async function getConversations(
   request: HttpRequest,
-  context: InvocationContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {

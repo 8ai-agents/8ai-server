@@ -9,6 +9,7 @@ import { MessageCreatorType, NewOrganisationFile } from "./models/Database";
 import { db } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
 import { AssistantTool } from "openai/resources/beta/assistants";
+import { Run } from "openai/resources/beta/threads/runs/runs";
 
 export const handleMessageForOpenAI = async (
   messageRequest: MessageRequest,
@@ -25,7 +26,7 @@ export const handleMessageForOpenAI = async (
     content: messageRequest.message,
   });
 
-  let run = await openai.beta.threads.runs.createAndPoll(
+  const run = await openai.beta.threads.runs.createAndPoll(
     thread_id,
     {
       assistant_id,
@@ -34,64 +35,48 @@ export const handleMessageForOpenAI = async (
     { pollIntervalMs: 1000 }
   );
 
-  const messageResponse: MessageResponse[] = [];
+  return await handleThreadRun(
+    thread_id,
+    run,
+    openai,
+    context,
+    messageRequest.conversation_id,
+    contact_id
+  );
+};
 
-  if (run.status === "requires_action") {
-    context.log(
-      `function call detected: ${JSON.stringify(
-        run.required_action.submit_tool_outputs
-      )}`
-    );
-
-    const tool_outputs = run.required_action.submit_tool_outputs.tool_calls.map(
-      async (tc) => {
-        let output = `{ "success": "true" }`;
-        if (tc.function.name === "save_contact_details") {
-          output = await saveContactDetails(contact_id, tc.function.arguments);
-          context.log(`Save Contact Details: ${output}`);
-        }
-        return {
-          tool_call_id: tc.id,
-          output,
-        };
-      }
-    );
-
-    run = await openai.beta.threads.runs.submitToolOutputsAndPoll(
-      thread_id,
-      run.id,
-      {
-        tool_outputs: await Promise.all(tool_outputs),
+export const handleSingleMessageForOpenAI = async (
+  assistant_id: string,
+  message: string,
+  context: InvocationContext
+) => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+  const run = await openai.beta.threads.createAndRunPoll(
+    {
+      assistant_id,
+      instructions: "",
+      thread: {
+        messages: [
+          {
+            role: "user",
+            content: message,
+          },
+        ],
       },
-      { pollIntervalMs: 1000 }
-    );
-  }
+    },
+    { pollIntervalMs: 300 }
+  );
 
-  if (run.status === "completed") {
-    const messages = await openai.beta.threads.messages.list(run.thread_id, {
-      limit: 5,
-    });
-    for (const message of messages.data.slice(
-      0,
-      messages.data.findIndex((m) => m.role === "user")
-    )) {
-      // Gets all messages from the assistant since last user message
-      if (message.content[0].type === "text") {
-        messageResponse.push(
-          await processOpenAIMessage(
-            message,
-            messageRequest.conversation_id,
-            context
-          )
-        );
-      }
-    }
-  } else {
-    context.error(run.status);
-    throw new Error("OpenAI request failed");
-  }
-
-  return messageResponse;
+  return await handleThreadRun(
+    run.thread_id,
+    run,
+    openai,
+    context,
+    "",
+    undefined
+  );
 };
 
 export const processOpenAIMessage = async (
@@ -251,7 +236,7 @@ export const updateAssistantFile = async (
 
     // add new files
 
-    let newOrganisationFiles: NewOrganisationFile[] = [];
+    const newOrganisationFiles: NewOrganisationFile[] = [];
 
     let i = 0;
     // Can only take 100 files here
@@ -305,6 +290,70 @@ type SaveContactDetailsPayload = {
   name?: string;
   email?: string;
   phone?: string;
+};
+
+export const handleThreadRun = async (
+  thread_id: string,
+  run: Run,
+  openai: OpenAI,
+  context: InvocationContext,
+  conversation_id: string = "",
+  contact_id: string | undefined
+) => {
+  const messageResponse: MessageResponse[] = [];
+
+  if (run.status === "requires_action") {
+    context.log(
+      `function call detected: ${JSON.stringify(
+        run.required_action.submit_tool_outputs
+      )}`
+    );
+
+    const tool_outputs = run.required_action.submit_tool_outputs.tool_calls.map(
+      async (tc) => {
+        let output = `{ "success": "true" }`;
+        if (tc.function.name === "save_contact_details" && contact_id) {
+          output = await saveContactDetails(contact_id, tc.function.arguments);
+          context.log(`Save Contact Details: ${output}`);
+        }
+        return {
+          tool_call_id: tc.id,
+          output,
+        };
+      }
+    );
+
+    run = await openai.beta.threads.runs.submitToolOutputsAndPoll(
+      thread_id,
+      run.id,
+      {
+        tool_outputs: await Promise.all(tool_outputs),
+      },
+      { pollIntervalMs: 1000 }
+    );
+  }
+
+  if (run.status === "completed") {
+    const messages = await openai.beta.threads.messages.list(run.thread_id, {
+      limit: 5,
+    });
+    for (const message of messages.data.slice(
+      0,
+      messages.data.findIndex((m) => m.role === "user")
+    )) {
+      // Gets all messages from the assistant since last user message
+      if (message.content[0].type === "text") {
+        messageResponse.push(
+          await processOpenAIMessage(message, conversation_id, context)
+        );
+      }
+    }
+  } else {
+    context.error(run.status);
+    throw new Error("OpenAI request failed");
+  }
+
+  return messageResponse;
 };
 
 const saveContactDetails = async (

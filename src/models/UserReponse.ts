@@ -14,7 +14,7 @@ export class UserResponse {
     this.id = createID("user");
     this.organisation_id = org_id;
     this.name = name;
-    this.email = this.email;
+    this.email = email;
     this.role = UserRoleType.USER;
   }
 }

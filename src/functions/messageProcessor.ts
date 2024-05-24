@@ -1,7 +1,6 @@
 import { app, EventGridEvent, InvocationContext } from "@azure/functions";
-import OpenAI from "openai";
 import { MessageResponse } from "../models/MessageResponse";
-import { processOpenAIMessage } from "../openAIHandler";
+import { handleSingleMessageForOpenAI } from "../openAIHandler";
 
 export async function messageProcessor(
   event: EventGridEvent,
@@ -20,56 +19,34 @@ const processSlackMessage = async (
   context: InvocationContext
 ) => {
   /// Process
-  const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
-  });
-  const thread = await openai.beta.threads.createAndRunPoll(
-    {
-      assistant_id: event.data.assistant_id.toString(),
-      instructions: "",
-      thread: {
-        messages: [
-          {
-            role: "user",
-            content: event.data.message.toString(),
-          },
-        ],
-      },
-    },
-    { pollIntervalMs: 300 }
+  const messageResponse: MessageResponse[] = await handleSingleMessageForOpenAI(
+    event.data.assistant_id.toString(),
+    event.data.message.toString(),
+    context
   );
-  const messageResponse: MessageResponse[] = [];
 
-  if (thread.status === "completed") {
-    const messages = await openai.beta.threads.messages.list(thread.thread_id);
-    for (const message of messages.data.slice(
-      0,
-      messages.data.findIndex((m) => m.role === "user")
-    )) {
-      // Gets all messages from the assistant since last user message
-      if (message.content[0].type === "text") {
-        messageResponse.push(await processOpenAIMessage(message, "", context));
-      }
-    }
-  } else {
-    context.error(thread.status);
-    throw new Error("OpenAI request failed");
+  let text = messageResponse.map((r) => r.message).join("\n");
+  const citationsWithURLs: string[] = messageResponse
+    .flatMap((m) => m.citations && m.citations.map((c) => c.url))
+    .filter((c) => c !== undefined && c !== "");
+  if (citationsWithURLs.length > 0) {
+    // Process citations with URLs
+    text += `\n\nThese links might help you:\n${citationsWithURLs.join("\n")}`;
   }
+  text += "\nIf this solved your question give the message a :white_tick:";
 
   await fetch(event.data.response_url.toString(), {
     method: "POST",
     body: JSON.stringify({
       response_type: "in_channel",
       replace_original: true,
-      text:
-        messageResponse.map((r) => r.message).join("\n") +
-        " If this solved your question give the message a :white_tick:",
+      text,
     }),
     headers: {
       "Content-type": "application/json; charset=UTF-8",
     },
   })
-    .then((response) => context.log("Processed Slack Message"))
+    .then(() => context.log("Processed Slack Message"))
     .catch((error) => {
       context.log(error);
     });

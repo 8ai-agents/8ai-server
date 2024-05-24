@@ -10,10 +10,10 @@ import { ConversationStatusType } from "../models/Database";
 
 export async function updateConversationStatus(
   request: HttpRequest,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const email = await authenticateRequest(request);
+    await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }

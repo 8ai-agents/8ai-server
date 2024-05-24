@@ -5,13 +5,13 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { authenticateRequest } from "../AuthController";
-import { db, getUser } from "../DatabaseController";
-import { UserRoleType } from "../models/Database";
+import { db } from "../DatabaseController";
 import { OrganisationResponse } from "../models/OrganisationResponse";
 import { checkUserIsAdmin } from "../Utils";
 
 export async function getOrganisations(
   request: HttpRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
