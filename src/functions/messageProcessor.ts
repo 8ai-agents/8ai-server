@@ -33,7 +33,8 @@ const processSlackMessage = async (
     // Process citations with URLs
     text += `\n\nThese links might help you:\n${citationsWithURLs.join("\n")}`;
   }
-  text += "\nIf this solved your question give the message a :white_tick:";
+  text +=
+    "\nIf this solved your question give the message a :white_check_mark:";
 
   await fetch(event.data.response_url.toString(), {
     method: "POST",
