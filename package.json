@@ -12,6 +12,7 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
+    "@azure/ai-language-text": "^1.1.0",
     "@azure/eventgrid": "^5.4.0",
     "@azure/functions": "^4.0.0",
     "jose": "^5.2.4",

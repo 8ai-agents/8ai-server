@@ -1,8 +1,14 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { db } from "../DatabaseController";
 import OpenAI from "openai";
-import { ConversationStatusType } from "../models/Database";
+import { ConversationStatusType, MessageCreatorType } from "../models/Database";
 import { TextContentBlock } from "openai/resources/beta/threads/messages";
+import {
+  AzureKeyCredential,
+  TextAnalysisClient,
+  SentimentAnalysisSuccessResult,
+  SentimentAnalysisResult,
+} from "@azure/ai-language-text";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
@@ -22,6 +28,14 @@ export async function cronSummariseConversations(
     .select(["id", "organisation_id", "last_message_at", "summary"])
     .execute();
 
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+  const sentimentClient = new TextAnalysisClient(
+    "https://8ai-conversation-summarisation.cognitiveservices.azure.com/",
+    new AzureKeyCredential(process.env.AZURE_CONGNITIVE_SERVICE_KEY)
+  );
+
   for (const { id, organisation_id } of conversations.filter(
     (c) =>
       !c.summary ||
@@ -30,62 +44,109 @@ export async function cronSummariseConversations(
   )) {
     context.log(`Summarising Conversation ${id}`);
 
+    let summary = "";
+    let sentiment = 0;
     try {
-      const openai = new OpenAI({
-        apiKey: process.env.OPEN_API_KEY,
-      });
+      // Summarise
       const organisation = organisationsAssistants.find(
         (o) => o.id === organisation_id
       );
-      const thread_id = id.replace("conv_", "thread_");
 
-      await openai.beta.threads.messages.create(thread_id, {
-        role: "assistant",
-        content:
-          "Please summarise in one line the conversation so far, what is it about, and if the customer's request been resolved",
-      });
-
-      let run = await openai.beta.threads.runs.create(thread_id, {
-        assistant_id: organisation.assistant_id,
-        instructions: "",
-      });
-
-      while (["queued", "in_progress", "cancelling"].includes(run.status)) {
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 1 second
-        run = await openai.beta.threads.runs.retrieve(run.thread_id, run.id);
-
-        if (run.status === "completed") {
-          const messagesResponse = await openai.beta.threads.messages.list(
-            run.thread_id
-          );
-          const content = messagesResponse.data[0].content.find(
-            (c) => c.type === "text"
-          ) as TextContentBlock;
-          const summary = content.text.value;
-
-          // Save summary to database
-          await db
-            .updateTable("conversations")
-            .set({ summary })
-            .where("id", "=", id)
-            .execute();
-        } else if (run.status === "failed") {
-          context.error(
-            `Summarising Conversation Failed ${id} - ${JSON.stringify(
-              run.last_error
-            )}`
-          );
-        }
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      summary = await summariseConversation(
+        openai,
+        id,
+        organisation?.assistant_id
+      );
     } catch (error: unknown) {
       const err = error as Error;
       context.error(
         `Summarising Conversation Error ${id} - ${JSON.stringify(err.message)}`
       );
     }
+
+    try {
+      // Sentiment
+      const messages = await db
+        .selectFrom("messages")
+        .where("conversation_id", "=", id)
+        .where("creator", "=", MessageCreatorType.CONTACT)
+        .select(["message", "created_at"])
+        .orderBy("created_at", "desc")
+        .limit(10)
+        .execute();
+
+      const results: SentimentAnalysisResult[] = await sentimentClient.analyze(
+        "SentimentAnalysis",
+        messages.map((m) => m.message)
+      );
+
+      const successResults = results.filter(
+        (r) => r.error === undefined
+      ) as SentimentAnalysisSuccessResult[];
+
+      // Int where negative means more is negative than positive
+      sentiment =
+        successResults.filter((r) => r.sentiment === "positive").length -
+        successResults.filter((r) => r.sentiment === "negative").length * 2;
+
+      context.log(`NPS Sentiment for Conversation ${id}: ${sentiment}`);
+    } catch (error: unknown) {
+      context.error(
+        `Error getting NPS Sentiment for Conversation ${id} - ${JSON.stringify(
+          (error as Error).message
+        )}`
+      );
+    }
+
+    await db
+      .updateTable("conversations")
+      .set({ summary, sentiment })
+      .where("id", "=", id)
+      .execute();
+
+    await new Promise((resolve) => setTimeout(resolve, 10000));
   }
 }
+
+const summariseConversation = async (
+  openai: OpenAI,
+  conversation_id: string,
+  assistant_id: string
+) => {
+  const thread_id = conversation_id.replace("conv_", "thread_");
+
+  await openai.beta.threads.messages.create(thread_id, {
+    role: "assistant",
+    content:
+      "Please summarise in one line the conversation so far, what is it about, and if the customer's request been resolved",
+  });
+
+  let run = await openai.beta.threads.runs.create(thread_id, {
+    assistant_id: assistant_id,
+    instructions: "",
+  });
+
+  while (["queued", "in_progress", "cancelling"].includes(run.status)) {
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 1 second
+    run = await openai.beta.threads.runs.retrieve(run.thread_id, run.id);
+
+    if (run.status === "completed") {
+      const messagesResponse = await openai.beta.threads.messages.list(
+        run.thread_id
+      );
+      const content = messagesResponse.data[0].content.find(
+        (c) => c.type === "text"
+      ) as TextContentBlock;
+      return content.text.value;
+
+      // Save summary to database
+    } else if (run.status === "failed") {
+      throw `Summarising Conversation Failed ${conversation_id} - ${JSON.stringify(
+        run.last_error
+      )}`;
+    }
+  }
+};
 
 app.timer("cronSummariseConversations", {
   //schedule: "* * * * *", // Every minute for testing
