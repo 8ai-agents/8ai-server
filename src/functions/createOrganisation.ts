@@ -27,8 +27,18 @@ export async function createOrganisation(
 
     context.log(`Creating organisation ${organisationRequest.name}`);
     const organisationToSave: NewOrganisation = {
-      ...organisationRequest,
       id: createID("org"),
+      name: organisationRequest.name,
+      assistant_id: undefined,
+      description: organisationRequest.description,
+      website: organisationRequest.website,
+      logo_url: organisationRequest.logo_url,
+      support_email: organisationRequest.support_email,
+      support_phone: organisationRequest.support_phone,
+      chat_icon_color: organisationRequest.chat_icon_color,
+      chat_bubble_color: organisationRequest.chat_bubble_color,
+      chat_text_color: organisationRequest.chat_text_color,
+      fine_tuning_filename: organisationRequest.fine_tuning_filename,
     };
     await db
       .insertInto("organisations")
@@ -41,6 +51,7 @@ export async function createOrganisation(
         const assistant_id = await createAssistant(
           organisationToSave.id,
           organisationRequest.name,
+          organisationRequest.description,
           organisationRequest.fine_tuning_data
         );
         // save assistant ID to org

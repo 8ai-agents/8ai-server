@@ -151,6 +151,7 @@ export const processOpenAIMessage = async (
 export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
+  organisation_description: string,
   filedata: string
 ) => {
   const openai = new OpenAI({
@@ -164,7 +165,7 @@ export const createAssistant = async (
         .split(" ")
         .join("-")
         .toLowerCase()}`,
-      instructions: `You are a customer support agent for ${organisation_name}. Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a phone number for a call back by an expert within 2 business days.`,
+      instructions: `You are a customer support agent for ${organisation_name}. ${organisation_description} Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a phone number for a call back by an expert within 2 business days.`,
       model: "gpt-4o",
       tools: getToolModel(false),
     });
