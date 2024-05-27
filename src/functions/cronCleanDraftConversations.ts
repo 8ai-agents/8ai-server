@@ -6,7 +6,7 @@ export async function cronCleanDraftConversations(
   context: InvocationContext
 ): Promise<void> {
   context.log(`Cleaning Draft Conversations`);
-  const oneHourAgo: number = Date.now() - 1000 * 60 * 60 * 1; // More than 12 hours ago
+  const oneHourAgo: number = Date.now() - 1000 * 60 * 60 * 1; // More than 1 hour ago
   const allConversations = await db
     .selectFrom("conversations")
     .select(["id", "contact_id", "status", "last_message_at"])
@@ -61,7 +61,6 @@ export async function cronCleanDraftConversations(
 }
 
 app.timer("cronCleanDraftConversations", {
-  schedule: "0 * */12 * * *", // Every 12 hours
-  //schedule: "* * * * *", // Every minute for testing
+  schedule: "0 0 * * * *", // Every hour
   handler: cronCleanDraftConversations,
 });
