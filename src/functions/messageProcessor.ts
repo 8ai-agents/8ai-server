@@ -1,6 +1,6 @@
 import { app, EventGridEvent, InvocationContext } from "@azure/functions";
 import { MessageResponse } from "../models/MessageResponse";
-import { handleSingleMessageForOpenAI } from "../openAIHandler";
+import { handleSingleMessageForOpenAI } from "../OpenAIHandler";
 
 export async function messageProcessor(
   event: EventGridEvent,

@@ -8,7 +8,7 @@ import { authenticateRequest } from "../AuthController";
 import { OrganisationUpdate, UserRoleType } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { db, getOrganisation, getUser } from "../DatabaseController";
-import { updateAssistantFile } from "../openAIHandler";
+import { updateAssistantFile } from "../OpenAIHandler";
 
 export async function updateOrganisation(
   request: HttpRequest,

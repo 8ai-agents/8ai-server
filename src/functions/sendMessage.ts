@@ -12,7 +12,7 @@ import {
   NewMessage,
 } from "../models/Database";
 import { db } from "../DatabaseController";
-import { handleMessageForOpenAI } from "../openAIHandler";
+import { handleMessageForOpenAI } from "../OpenAIHandler";
 import { authenticateRequest } from "../AuthController";
 
 export async function sendMessage(

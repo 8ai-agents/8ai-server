@@ -9,7 +9,7 @@ import { NewOrganisation } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { db, getOrganisation } from "../DatabaseController";
 import { checkUserIsAdmin, createID } from "../Utils";
-import { createAssistant } from "../openAIHandler";
+import { createAssistant } from "../OpenAIHandler";
 
 export async function createOrganisation(
   request: HttpRequest,
