@@ -103,7 +103,7 @@ export async function sendMessageSlack(
 }
 
 app.http("sendMessageSlack", {
-  methods: ["POST"],
+  methods: ["POST", "OPTIONS"],
   authLevel: "anonymous",
   route: "/chat/slack/{org_id}",
   handler: sendMessageSlack,

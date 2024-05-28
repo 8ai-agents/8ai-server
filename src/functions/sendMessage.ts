@@ -75,6 +75,7 @@ export async function sendMessage(
       // interrupted by a user, AI should not process this message
       return {
         status: 200,
+        jsonBody: [],
       };
     } else {
       const responses = await handleMessageForOpenAI(
@@ -152,7 +153,7 @@ const saveMessageResponsesToDatabase = (
 };
 
 app.http("sendMessage", {
-  methods: ["POST"],
+  methods: ["POST", "OPTIONS"],
   route: "chat",
   authLevel: "anonymous",
   handler: sendMessage,

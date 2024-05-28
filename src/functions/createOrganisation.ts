@@ -79,7 +79,7 @@ export async function createOrganisation(
 }
 
 app.http("createOrganisation", {
-  methods: ["POST"],
+  methods: ["POST", "OPTIONS"],
   route: "organisations",
   authLevel: "anonymous",
   handler: createOrganisation,
