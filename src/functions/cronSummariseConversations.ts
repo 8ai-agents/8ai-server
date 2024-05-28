@@ -1,5 +1,5 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
-import { db } from "../DatabaseController";
+import { db, getFullConversation } from "../DatabaseController";
 import OpenAI from "openai";
 import { ConversationStatusType, MessageCreatorType } from "../models/Database";
 import { TextContentBlock } from "openai/resources/beta/threads/messages";
@@ -9,6 +9,7 @@ import {
   SentimentAnalysisSuccessResult,
   SentimentAnalysisResult,
 } from "@azure/ai-language-text";
+import { sendNegativeSentimentWarning } from "../OneSignalHandler";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
@@ -25,7 +26,13 @@ export async function cronSummariseConversations(
   const conversations = await db
     .selectFrom("conversations")
     .where("status", "!=", ConversationStatusType.DRAFT)
-    .select(["id", "organisation_id", "last_message_at", "summary"])
+    .select([
+      "id",
+      "organisation_id",
+      "last_message_at",
+      "summary",
+      "sentiment",
+    ])
     .execute();
 
   const openai = new OpenAI({
@@ -36,7 +43,11 @@ export async function cronSummariseConversations(
     new AzureKeyCredential(process.env.AZURE_CONGNITIVE_SERVICE_KEY)
   );
 
-  for (const { id, organisation_id } of conversations.filter(
+  for (const {
+    id,
+    organisation_id,
+    sentiment: currentSentiment,
+  } of conversations.filter(
     (c) =>
       !c.summary ||
       (c.last_message_at <= tenMinutesAgo &&
@@ -90,6 +101,19 @@ export async function cronSummariseConversations(
         successResults.filter((r) => r.sentiment === "negative").length * 2;
 
       context.log(`NPS Sentiment for Conversation ${id}: ${sentiment}`);
+
+      if (sentiment < 0 && (currentSentiment >= 0 || !currentSentiment)) {
+        // Send warning
+        context.log(
+          `Sending Negative Sentiment Warning for Conversation ${id}`
+        );
+        const fullConversation = await getFullConversation(id);
+        await sendNegativeSentimentWarning(
+          organisation_id,
+          fullConversation,
+          context
+        );
+      }
     } catch (error: unknown) {
       context.error(
         `Error getting NPS Sentiment for Conversation ${id} - ${JSON.stringify(
@@ -149,7 +173,7 @@ const summariseConversation = async (
 };
 
 app.timer("cronSummariseConversations", {
-  //schedule: "* * * * *", // Every minute for testing
-  schedule: "0 */10 * * * *", // Every 10 minutes
+  schedule: "* * * * *", // Every minute for testing
+  // schedule: "0 */10 * * * *", // Every 10 minutes
   handler: cronSummariseConversations,
 });
