@@ -78,6 +78,7 @@ export const getMessagesForConversation = async (
   const data = await db
     .selectFrom("messages")
     .where("conversation_id", "=", conv_id)
+    .orderBy("created_at", "desc")
     .selectAll()
     .execute();
 

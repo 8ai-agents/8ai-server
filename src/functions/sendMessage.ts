@@ -66,10 +66,13 @@ export async function sendMessage(
       citations: undefined,
     };
 
+    await saveMessagesToDatabase(
+      [newMessageRequest],
+      interrupted || messageRequest.creator === "USER"
+    );
+
     if (interrupted || messageRequest.creator === "USER") {
-      // interrupted by a user, AI should not process
-      // Save message to database
-      await saveMessageToDatabase(newMessageRequest, undefined, true);
+      // interrupted by a user, AI should not process this message
       return {
         status: 200,
       };
@@ -82,7 +85,7 @@ export async function sendMessage(
       );
 
       // Save message to database
-      await saveMessageToDatabase(newMessageRequest, responses, false);
+      await saveMessageResponsesToDatabase(responses, false);
 
       return {
         status: 200,
@@ -101,13 +104,39 @@ export async function sendMessage(
   }
 }
 
-const saveMessageToDatabase = (
-  requestToSave: NewMessage,
-  responses: MessageResponse[] | undefined,
+const saveMessagesToDatabase = (
+  messages: NewMessage[],
   setInterrupted: boolean
 ) => {
-  const responsesToSave: NewMessage[] = responses
-    ? responses.map((r) => {
+  return Promise.all([
+    db.insertInto("messages").values(messages).execute(),
+    setInterrupted
+      ? db
+          .updateTable("conversations")
+          .set({
+            last_message_at: Math.max(...messages.map((r) => r.created_at)),
+            status: ConversationStatusType.OPEN,
+            interrupted: true,
+          })
+          .where("id", "=", messages[0].conversation_id)
+          .execute()
+      : db
+          .updateTable("conversations")
+          .set({
+            last_message_at: Math.max(...messages.map((r) => r.created_at)),
+            status: ConversationStatusType.OPEN,
+          })
+          .where("id", "=", messages[0].conversation_id)
+          .execute(),
+  ]);
+};
+
+const saveMessageResponsesToDatabase = (
+  messages: MessageResponse[] | undefined,
+  setInterrupted: boolean
+) => {
+  const messagesToSave: NewMessage[] = messages
+    ? messages.map((r) => {
         return {
           id: r.id,
           conversation_id: r.conversation_id,
@@ -119,36 +148,7 @@ const saveMessageToDatabase = (
         };
       })
     : undefined;
-  return Promise.all([
-    db
-      .insertInto("messages")
-      .values(
-        responsesToSave ? [requestToSave, ...responsesToSave] : [requestToSave]
-      )
-      .execute(),
-    setInterrupted
-      ? db
-          .updateTable("conversations")
-          .set({
-            last_message_at: responsesToSave
-              ? Math.max(...responsesToSave.map((r) => r.created_at))
-              : requestToSave.created_at,
-            status: ConversationStatusType.OPEN,
-            interrupted: true,
-          })
-          .where("id", "=", requestToSave.conversation_id)
-          .execute()
-      : db
-          .updateTable("conversations")
-          .set({
-            last_message_at: responsesToSave
-              ? Math.max(...responsesToSave.map((r) => r.created_at))
-              : requestToSave.created_at,
-            status: ConversationStatusType.OPEN,
-          })
-          .where("id", "=", requestToSave.conversation_id)
-          .execute(),
-  ]);
+  return saveMessagesToDatabase(messagesToSave, setInterrupted);
 };
 
 app.http("sendMessage", {
