@@ -38,6 +38,7 @@ export const getFullConversation = async (
     .where("conversations.id", "=", conv_id)
     .select([
       "conversations.id",
+      "conversations.organisation_id",
       "conversations.contact_id",
       "contacts.name",
       "contacts.email",
@@ -53,6 +54,7 @@ export const getFullConversation = async (
   if (conversationData) {
     return {
       id: conversationData.id,
+      organisation_id: conversationData.organisation_id,
       contact: {
         id: conversationData.contact_id,
         name: conversationData.name,
