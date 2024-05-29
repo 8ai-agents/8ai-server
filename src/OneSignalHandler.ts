@@ -3,6 +3,7 @@ import { User } from "./models/Database";
 import * as OneSignal from "@onesignal/node-onesignal";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { db } from "./DatabaseController";
+import TimeAgo from "javascript-time-ago";
 
 const getClient = () => {
   const configuration = OneSignal.createConfiguration({
@@ -30,17 +31,19 @@ export const sendDailySummary = async (
       total_count: conversations.length,
       conversations: conversations
         .filter((c) => c.messages?.length > 0)
-        .map((conv) => {
+        .map((conversation) => {
           return {
-            id: conv.id,
-            url: `https://app.8ai.co.nz/conversations/${conv.id}`,
-            name: conv.contact.name,
-            email: conv.contact.email,
-            phone: conv.contact.phone,
-            summary: conv.summary,
-            sentiment: conv.sentiment,
-            message_count: conv.messages.length,
-            last_message_at: new Date(conv.last_message_at).toLocaleString(),
+            id: conversation.id,
+            url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+            name: conversation.contact.name,
+            email: conversation.contact.email,
+            phone: conversation.contact.phone,
+            summary: conversation.summary,
+            sentiment: conversation.sentiment,
+            message_count: conversation.messages.length,
+            last_message_at: new TimeAgo("en-US").format(
+              new Date(conversation.last_message_at)
+            ),
           };
         }),
     };
@@ -91,7 +94,9 @@ export const sendNegativeSentimentWarning = async (
     summary: conversation.summary,
     sentiment: conversation.sentiment,
     message_count: conversation.messages.length,
-    last_message_at: new Date(conversation.last_message_at).toLocaleString(),
+    last_message_at: new TimeAgo("en-US").format(
+      new Date(conversation.last_message_at)
+    ),
     messages: conversation.messages
       .sort((a, b) => a.created_at - b.created_at)
       .map((message) => {
