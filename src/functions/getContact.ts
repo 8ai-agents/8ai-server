@@ -50,11 +50,13 @@ export async function getContact(
       conversations: conversationData.map((d) => {
         return {
           id: d.id,
+          organisation_id: d.organisation_id,
           contact_name: contactData.name,
           created_at: d.created_at,
           last_message_at: d.last_message_at,
           status: d.status,
           summary: d.summary,
+          sentiment: d.sentiment,
         };
       }),
     };

@@ -1,7 +1,11 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { db, getFullConversation } from "../DatabaseController";
 import { ConversationStatusType } from "../models/Database";
-import { sendDailySummary } from "../OneSignalHandler";
+import {
+  sendDailySummary,
+  sendDailySummaryToSuperAdmins,
+} from "../OneSignalHandler";
+import { ConversationsResponse } from "../models/ConversationsResponse";
 
 export async function cronDailyMessageSummaries(
   myTimer: Timer,
@@ -13,7 +17,7 @@ export async function cronDailyMessageSummaries(
 
   const allUsers = await db
     .selectFrom("users")
-    .select(["id", "name", "email", "organisation_id"])
+    .select(["id", "name", "email", "organisation_id", "role"])
     .where("email", "!=", "")
     .execute();
 
@@ -61,9 +65,61 @@ export async function cronDailyMessageSummaries(
       );
     }
   }
+
+  // Now sending a summary to all super admins
+  try {
+    const superAdmins = allUsers.filter((u) => u.role === "SUPER_ADMIN");
+    const allMessagesData = await db
+      .selectFrom("conversations")
+      .innerJoin("contacts", "conversations.contact_id", "contacts.id")
+      .where("last_message_at", ">", oneDayAgo)
+      .where("status", "!=", ConversationStatusType.DRAFT)
+      .select([
+        "conversations.id",
+        "contacts.name",
+        "conversations.created_at",
+        "conversations.organisation_id",
+        "conversations.last_message_at",
+        "conversations.status",
+        "conversations.summary",
+        "conversations.sentiment",
+      ])
+      .orderBy("last_message_at", "desc")
+      .execute();
+
+    const allMessages: ConversationsResponse[] = allMessagesData.map((d) => {
+      return {
+        id: d.id,
+        organisation_id: d.organisation_id,
+        contact_name: d.name,
+        created_at: d.created_at,
+        last_message_at: d.last_message_at,
+        status: d.status,
+        summary: d.summary,
+        sentiment: d.sentiment,
+      };
+    });
+
+    const organisations = await db
+      .selectFrom("organisations")
+      .select(["id", "name"])
+      .execute();
+
+    await sendDailySummaryToSuperAdmins(
+      allMessages,
+      superAdmins,
+      organisations,
+      context
+    );
+  } catch (e) {
+    context.error(
+      `Sending Daily Message Summaries - Error sending daily summary to super admins - ${e}`
+    );
+  }
 }
 
 app.timer("cronDailyMessageSummaries", {
-  schedule: "0 0 5 * * *",
+  schedule: "0 0 5 * * *", // Every day at 5am UTC
+  runOnStartup: false,
   handler: cronDailyMessageSummaries,
 });

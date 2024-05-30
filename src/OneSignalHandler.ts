@@ -1,11 +1,13 @@
 import { InvocationContext } from "@azure/functions";
-import { User } from "./models/Database";
+import { User, UserRoleType } from "./models/Database";
 import * as OneSignal from "@onesignal/node-onesignal";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { db } from "./DatabaseController";
-import TimeAgo from "javascript-time-ago";
+import { format } from "timeago.js";
+import { ConversationsResponse } from "./models/ConversationsResponse";
 
 const getClient = () => {
+  // Create formatter (English).
   const configuration = OneSignal.createConfiguration({
     restApiKey: process.env.ONESIGNAL_API_KEY,
   });
@@ -17,7 +19,7 @@ export const sendDailySummary = async (
   users: User[],
   context: InvocationContext
 ) => {
-  const client = getClient();
+  const oneSignal = getClient();
 
   for (const user of users.filter((user) => user.email)) {
     const email = new OneSignal.Notification();
@@ -41,14 +43,12 @@ export const sendDailySummary = async (
             summary: conversation.summary,
             sentiment: conversation.sentiment,
             message_count: conversation.messages.length,
-            last_message_at: new TimeAgo("en-US").format(
-              new Date(conversation.last_message_at)
-            ),
+            last_message_at: format(new Date(conversation.last_message_at)),
           };
         }),
     };
 
-    await client.createNotification(email).then(
+    await oneSignal.createNotification(email).then(
       (response) => {
         context.log(response);
         context.log(`Successfully sent daily summary to ${users.length} users`);
@@ -58,12 +58,87 @@ export const sendDailySummary = async (
   }
 };
 
+export const sendDailySummaryToSuperAdmins = async (
+  conversations: ConversationsResponse[],
+  superAdmins: {
+    id: string;
+    organisation_id: string;
+    name: string;
+    email: string;
+    role: UserRoleType;
+  }[],
+  organisations: { id: string; name: string }[],
+  context: InvocationContext
+) => {
+  const oneSignal = getClient();
+
+  const organisationsData: {
+    id: string;
+    name: string;
+    total_count: number;
+    conversations: {
+      id: string;
+      url: string;
+      name: string;
+      summary: string;
+      sentiment: number;
+      last_message_at: string;
+    }[];
+  }[] = [];
+
+  for (const org of organisations) {
+    if (conversations.some((c) => c.organisation_id === org.id)) {
+      const orgConversations = conversations.filter(
+        (c) => c.organisation_id === org.id
+      );
+      organisationsData.push({
+        id: org.id,
+        name: org.name,
+        total_count: orgConversations.length,
+        conversations: orgConversations.map((conversation) => {
+          return {
+            id: conversation.id,
+            url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+            name: conversation.contact_name,
+            summary: conversation.summary,
+            sentiment: conversation.sentiment,
+            last_message_at: format(new Date(conversation.last_message_at)),
+          };
+        }),
+      });
+    }
+  }
+
+  const email = new OneSignal.Notification();
+  email.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
+  email.include_email_tokens = superAdmins
+    .filter((user) => user.email)
+    .map((user) => user.email);
+  email.target_channel = "email";
+  email.email_subject = "8ai Super Admin Daily Conversations Summary";
+  email.template_id = "0129c557-6403-43f8-bf53-f8e806769ce9"; // 8ai Daily Conversation Summary Super Admins
+  email.custom_data = {
+    total_count: conversations.length,
+    organisations: organisationsData,
+  };
+
+  await oneSignal.createNotification(email).then(
+    (response) => {
+      context.log(response);
+      context.log(
+        `Successfully sent daily summary to ${superAdmins.length} users`
+      );
+    },
+    (error) => context.error(error)
+  );
+};
+
 export const sendNegativeSentimentWarning = async (
   organisation_id: string,
   conversation: ConversationResponse,
   context: InvocationContext
 ) => {
-  const client = getClient();
+  const oneSignal = getClient();
 
   const emails = await db
     .selectFrom("users")
@@ -94,9 +169,7 @@ export const sendNegativeSentimentWarning = async (
     summary: conversation.summary,
     sentiment: conversation.sentiment,
     message_count: conversation.messages.length,
-    last_message_at: new TimeAgo("en-US").format(
-      new Date(conversation.last_message_at)
-    ),
+    last_message_at: format(new Date(conversation.last_message_at)),
     messages: conversation.messages
       .sort((a, b) => a.created_at - b.created_at)
       .map((message) => {
@@ -107,7 +180,7 @@ export const sendNegativeSentimentWarning = async (
       }),
   };
 
-  await client.createNotification(email).then(
+  await oneSignal.createNotification(email).then(
     (response) => {
       context.log(response);
       context.log(

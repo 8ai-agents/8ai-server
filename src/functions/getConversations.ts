@@ -41,20 +41,24 @@ export async function getConversations(
       "conversations.id",
       "contacts.name",
       "conversations.created_at",
+      "conversations.organisation_id",
       "conversations.last_message_at",
       "conversations.status",
       "conversations.summary",
+      "conversations.sentiment",
     ])
     .execute();
 
   const results: ConversationsResponse[] = data.map((d) => {
     return {
       id: d.id,
+      organisation_id: d.organisation_id,
       contact_name: d.name,
       created_at: d.created_at,
       last_message_at: d.last_message_at,
       status: d.status,
       summary: d.summary,
+      sentiment: d.sentiment,
     };
   });
 

@@ -173,7 +173,6 @@ const summariseConversation = async (
 };
 
 app.timer("cronSummariseConversations", {
-  // schedule: "* * * * *", // Every minute for testing
   schedule: "0 */10 * * * *", // Every 10 minutes
   handler: cronSummariseConversations,
 });

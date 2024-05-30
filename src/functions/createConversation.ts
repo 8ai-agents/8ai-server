@@ -24,7 +24,8 @@ export async function createConversation(
     const newContact: ContactResponse = new ContactResponse();
     const response: ConversationsResponse = new ConversationsResponse(
       thread.id,
-      newContact.name
+      newContact.name,
+      org_id
     );
 
     // Save to db

@@ -16,11 +16,11 @@
     "@azure/eventgrid": "^5.4.0",
     "@azure/functions": "^4.0.0",
     "@onesignal/node-onesignal": "^5.0.0-alpha-01",
-    "javascript-time-ago": "^2.5.10",
     "jose": "^5.2.4",
     "kysely": "^0.27.3",
     "openai": "^4.47.1",
     "pg": "^8.11.5",
+    "timeago.js": "^4.0.2",
     "unique-names-generator": "^4.7.1"
   },
   "devDependencies": {
