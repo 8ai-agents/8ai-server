@@ -66,11 +66,7 @@ const processSlackMessage = async (
     response +=
       "\nIf this solved your question give the message a :white_check_mark:";
 
-    await postResponseToSlack(data.response_url, response)
-      .then(() => context.log("Processed Slack Message"))
-      .catch((error) => {
-        context.log(error);
-      });
+    await postResponseToSlack(data.response_url, response, context);
 
     let contact_id: string = createID("cont");
     // Save to db
@@ -126,13 +122,18 @@ const processSlackMessage = async (
     context.error("Error processing Slack message: ", error);
     await postResponseToSlack(
       event.data.response_url.toString(),
-      "An error occured wth this message, please contact your adminstrator."
+      "An error occured wth this message, please contact your adminstrator.",
+      context
     );
   }
 };
 
-const postResponseToSlack = async (response_url: string, response: string) => {
-  return fetch(response_url, {
+const postResponseToSlack = async (
+  response_url: string,
+  response: string,
+  context: InvocationContext
+) => {
+  return await fetch(response_url, {
     method: "POST",
     body: JSON.stringify({
       response_type: "in_channel",
@@ -142,7 +143,12 @@ const postResponseToSlack = async (response_url: string, response: string) => {
     headers: {
       "Content-type": "application/json; charset=UTF-8",
     },
-  });
+  })
+    .then(() => context.log("Processed Slack Message"))
+    .catch((error) => {
+      context.log(error);
+      throw error;
+    });
 };
 
 app.eventGrid("messageProcessor", {
