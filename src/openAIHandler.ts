@@ -230,10 +230,6 @@ export const updateAssistantFile = async (
         await openai.beta.vectorStores.del(vector_store_id);
       }
     }
-    await db
-      .deleteFrom("organisation_files")
-      .where("organisation_id", "=", organisation_id)
-      .execute();
 
     // add new files
 

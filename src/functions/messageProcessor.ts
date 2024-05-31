@@ -130,7 +130,7 @@ const processSlackMessage = async (
 
 const postResponseToSlack = async (
   response_url: string,
-  response: string,
+  text: string,
   context: InvocationContext
 ) => {
   return await fetch(response_url, {
@@ -138,7 +138,7 @@ const postResponseToSlack = async (
     body: JSON.stringify({
       response_type: "in_channel",
       replace_original: true,
-      response,
+      text,
     }),
     headers: {
       "Content-type": "application/json; charset=UTF-8",
