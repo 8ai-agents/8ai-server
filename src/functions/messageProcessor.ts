@@ -116,6 +116,10 @@ const processSlackMessage = async (
       created_at: Date.now(),
     };
 
+    for (const mr of messageResponse) {
+      mr.conversation_id = newConversation.id;
+    }
+
     await db.insertInto("messages").values(inboundMessage).execute();
     await saveMessageResponsesToDatabase(messageResponse, false);
   } catch (error) {
