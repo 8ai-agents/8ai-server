@@ -6,7 +6,11 @@ import {
 } from "@azure/functions";
 import OpenAI from "openai";
 import { ConversationsResponse } from "../models/ConversationsResponse";
-import { NewContact, NewConversation } from "../models/Database";
+import {
+  ConversationChannelType,
+  NewContact,
+  NewConversation,
+} from "../models/Database";
 import { db } from "../DatabaseController";
 import { ContactResponse } from "../models/ContactResponse";
 
@@ -44,6 +48,7 @@ export async function createConversation(
       summary: response.summary,
       sentiment: 0,
       interrupted: false,
+      channel: ConversationChannelType.CHAT,
     };
     await db.insertInto("conversations").values(converationToSave).execute();
 
