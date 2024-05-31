@@ -45,7 +45,7 @@ export async function sendMessageSlack(
       user_name &&
       typeof user_name == "string" &&
       user_id &&
-      typeof user_name == "string"
+      typeof user_id == "string"
     ) {
       context.log(`Processing message from Slack ${messageText}`);
 
@@ -85,7 +85,7 @@ export async function sendMessageSlack(
             organisation_id,
             message: messageText,
             response_url,
-            user_id: user_name,
+            user_id,
             user_name,
           },
         },
