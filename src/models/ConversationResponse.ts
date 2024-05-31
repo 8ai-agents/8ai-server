@@ -1,5 +1,5 @@
 import { ContactResponse } from "./ContactResponse";
-import { ConversationStatusType } from "./Database";
+import { ConversationChannelType, ConversationStatusType } from "./Database";
 import { MessageResponse } from "./MessageResponse";
 
 export interface ConversationResponse {
@@ -12,4 +12,5 @@ export interface ConversationResponse {
   status: ConversationStatusType;
   summary: string;
   sentiment: number;
+  channel: ConversationChannelType;
 }

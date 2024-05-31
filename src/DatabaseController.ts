@@ -53,6 +53,7 @@ export const getFullConversation = async (
       "conversations.status",
       "conversations.summary",
       "conversations.sentiment",
+      "conversations.channel",
     ])
     .executeTakeFirst();
 
@@ -73,6 +74,7 @@ export const getFullConversation = async (
       status: conversationData.status,
       summary: conversationData.summary,
       sentiment: conversationData.sentiment,
+      channel: conversationData.channel,
     };
   } else {
     throw "Can't find coversation";

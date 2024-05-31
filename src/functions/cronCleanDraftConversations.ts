@@ -62,5 +62,6 @@ export async function cronCleanDraftConversations(
 
 app.timer("cronCleanDraftConversations", {
   schedule: "0 0 * * * *", // Every hour
+  runOnStartup: false,
   handler: cronCleanDraftConversations,
 });

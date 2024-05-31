@@ -1,14 +1,16 @@
-import { ConversationStatusType } from "./Database";
+import { ConversationChannelType, ConversationStatusType } from "./Database";
 
 export class ConversationsResponse {
   id: string; // conv_xxx
   organisation_id: string; // org_xxx
   contact_name: string;
+  has_contact_details: boolean;
   created_at: number;
   last_message_at: number;
   status: ConversationStatusType;
   summary: string;
   sentiment: number;
+  channel: ConversationChannelType;
 
   constructor(
     thread_id: string,
@@ -18,9 +20,11 @@ export class ConversationsResponse {
     this.id = thread_id.replace("thread_", "conv_");
     this.organisation_id = organisation_id;
     this.contact_name = contact_name;
+    this.has_contact_details = false;
     this.created_at = Date.now();
     this.last_message_at = Date.now();
     (this.status = ConversationStatusType.DRAFT), (this.summary = "");
     this.sentiment = 0;
+    this.channel = ConversationChannelType.CHAT;
   }
 }

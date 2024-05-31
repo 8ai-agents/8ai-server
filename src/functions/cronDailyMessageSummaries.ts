@@ -77,12 +77,15 @@ export async function cronDailyMessageSummaries(
       .select([
         "conversations.id",
         "contacts.name",
+        "contacts.email",
+        "contacts.phone",
         "conversations.created_at",
         "conversations.organisation_id",
         "conversations.last_message_at",
         "conversations.status",
         "conversations.summary",
         "conversations.sentiment",
+        "conversations.channel",
       ])
       .orderBy("last_message_at", "desc")
       .execute();
@@ -92,11 +95,13 @@ export async function cronDailyMessageSummaries(
         id: d.id,
         organisation_id: d.organisation_id,
         contact_name: d.name,
+        has_contact_details: d.email || d.phone ? true : false,
         created_at: d.created_at,
         last_message_at: d.last_message_at,
         status: d.status,
         summary: d.summary,
         sentiment: d.sentiment,
+        channel: d.channel,
       };
     });
 

@@ -112,8 +112,9 @@ const processSlackMessage = async (
       created_at: Date.now(),
     };
 
-    for (const mr of messageResponse) {
+    for (const [index, mr] of messageResponse.entries()) {
       mr.conversation_id = newConversation.id;
+      mr.created_at = inboundMessage.created_at + index + 1;
     }
 
     await db.insertInto("messages").values(inboundMessage).execute();

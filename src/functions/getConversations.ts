@@ -40,25 +40,30 @@ export async function getConversations(
     .select([
       "conversations.id",
       "contacts.name",
+      "contacts.email",
+      "contacts.phone",
       "conversations.created_at",
       "conversations.organisation_id",
       "conversations.last_message_at",
       "conversations.status",
       "conversations.summary",
       "conversations.sentiment",
+      "conversations.channel",
     ])
     .execute();
 
-  const results: ConversationsResponse[] = data.map((d) => {
+  const results: ConversationsResponse[] = data.map((conv) => {
     return {
-      id: d.id,
-      organisation_id: d.organisation_id,
-      contact_name: d.name,
-      created_at: d.created_at,
-      last_message_at: d.last_message_at,
-      status: d.status,
-      summary: d.summary,
-      sentiment: d.sentiment,
+      id: conv.id,
+      organisation_id: conv.organisation_id,
+      contact_name: conv.name,
+      has_contact_details: conv.email || conv.phone ? true : false,
+      created_at: conv.created_at,
+      last_message_at: conv.last_message_at,
+      status: conv.status,
+      summary: conv.summary,
+      sentiment: conv.sentiment,
+      channel: conv.channel,
     };
   });
 

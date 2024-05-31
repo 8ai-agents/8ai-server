@@ -47,16 +47,19 @@ export async function getContact(
       name: contactData.name,
       email: contactData.email,
       phone: contactData.phone,
-      conversations: conversationData.map((d) => {
+      conversations: conversationData.map((conv) => {
         return {
-          id: d.id,
-          organisation_id: d.organisation_id,
+          id: conv.id,
+          organisation_id: conv.organisation_id,
           contact_name: contactData.name,
-          created_at: d.created_at,
-          last_message_at: d.last_message_at,
-          status: d.status,
-          summary: d.summary,
-          sentiment: d.sentiment,
+          has_contact_details:
+            contactData.email || contactData.phone ? true : false,
+          created_at: conv.created_at,
+          last_message_at: conv.last_message_at,
+          status: conv.status,
+          summary: conv.summary,
+          sentiment: conv.sentiment,
+          channel: conv.channel,
         };
       }),
     };

@@ -174,5 +174,6 @@ const summariseConversation = async (
 
 app.timer("cronSummariseConversations", {
   schedule: "0 */10 * * * *", // Every 10 minutes
+  runOnStartup: false,
   handler: cronSummariseConversations,
 });
