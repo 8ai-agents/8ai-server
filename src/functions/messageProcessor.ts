@@ -91,7 +91,6 @@ const processSlackMessage = async (
         slack_id: data.user_id,
       };
       await db.insertInto("contacts").values(newContact).execute();
-      contact.id = newContact.id;
     }
 
     const newConversation: NewConversation = {
