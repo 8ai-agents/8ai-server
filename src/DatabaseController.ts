@@ -1,6 +1,11 @@
 import * as pg from "pg";
 import { Kysely, PostgresDialect } from "kysely";
-import { Database, User } from "./models/Database";
+import {
+  ConversationStatusType,
+  Database,
+  NewMessage,
+  User,
+} from "./models/Database";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { MessageResponse } from "./models/MessageResponse";
 import { OrganisationResponse } from "./models/OrganisationResponse";
@@ -128,4 +133,51 @@ export const getUser = (email: string): Promise<User> => {
     .selectAll()
     .where("email", "=", email.toLowerCase())
     .executeTakeFirst();
+};
+
+export const saveMessagesToDatabase = (
+  messages: NewMessage[],
+  setInterrupted: boolean
+) => {
+  return Promise.all([
+    db.insertInto("messages").values(messages).execute(),
+    setInterrupted
+      ? db
+          .updateTable("conversations")
+          .set({
+            last_message_at: Math.max(...messages.map((r) => r.created_at)),
+            status: ConversationStatusType.OPEN,
+            interrupted: true,
+          })
+          .where("id", "=", messages[0].conversation_id)
+          .execute()
+      : db
+          .updateTable("conversations")
+          .set({
+            last_message_at: Math.max(...messages.map((r) => r.created_at)),
+            status: ConversationStatusType.OPEN,
+          })
+          .where("id", "=", messages[0].conversation_id)
+          .execute(),
+  ]);
+};
+
+export const saveMessageResponsesToDatabase = (
+  messages: MessageResponse[] | undefined,
+  setInterrupted: boolean
+) => {
+  const messagesToSave: NewMessage[] = messages
+    ? messages.map((r) => {
+        return {
+          id: r.id,
+          conversation_id: r.conversation_id,
+          message: r.message,
+          created_at: r.created_at,
+          creator: r.creator,
+          version: r.version,
+          citations: r.citations ? JSON.stringify(r.citations) : undefined,
+        };
+      })
+    : undefined;
+  return saveMessagesToDatabase(messagesToSave, setInterrupted);
 };

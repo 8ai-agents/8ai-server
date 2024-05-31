@@ -1,0 +1,3 @@
+ALTER TABLE conversations ADD COLUMN channel VARCHAR(10) DEFAULT 'CHAT' CHECK (channel IN ('CHAT', 'SLACK', 'EMAIL', 'WHATSAPP'));
+ALTER TABLE conversations ADD COLUMN channel_id VARCHAR(256);
+ALTER TABLE contacts ADD COLUMN slack_id VARCHAR(256);

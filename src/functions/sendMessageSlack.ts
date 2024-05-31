@@ -11,14 +11,15 @@ import {
   SendEventGridEventInput,
 } from "@azure/eventgrid";
 import { db } from "../DatabaseController";
+import { SlackMessageEvent } from "./messageProcessor";
 
 export async function sendMessageSlack(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const org_id = request.params.org_id as string;
-    if (!org_id) {
+    const organisation_id = request.params.org_id as string;
+    if (!organisation_id) {
       return {
         status: 400,
         jsonBody: {
@@ -27,23 +28,44 @@ export async function sendMessageSlack(
       };
     }
 
+    // Get data
     const formData = await request.formData();
-    const data: FormDataEntryValue | null = formData.get("text");
+    const messageText: FormDataEntryValue | null = formData.get("text");
     const response_url: FormDataEntryValue | null =
       formData.get("response_url");
+    const user_name: FormDataEntryValue | null = formData.get("user_name");
+    const user_id: FormDataEntryValue | null = formData.get("user_id");
+
+    // Process
     if (
-      data &&
-      typeof data == "string" &&
+      messageText &&
+      typeof messageText == "string" &&
       response_url &&
-      typeof response_url == "string"
+      typeof response_url == "string" &&
+      user_name &&
+      typeof user_name == "string" &&
+      user_id &&
+      typeof user_name == "string"
     ) {
-      context.log(`Processing message from Slack ${data}`);
+      context.log(`Processing message from Slack ${messageText}`);
+
+      // Verify that org has an assistant
       const { assistant_id } = await db
         .selectFrom("organisations")
         .select(["assistant_id"])
-        .where("id", "=", org_id)
+        .where("id", "=", organisation_id)
         .executeTakeFirst();
+      if (!assistant_id) {
+        return {
+          status: 500,
+          jsonBody: {
+            response_type: "in_channel",
+            text: "There is no assistant configured for this organisation. Please contact your administrator.",
+          },
+        };
+      }
 
+      // Publish message to EventGrid
       const topicEndpoint =
         "https://8ai-messaging-topic.australiaeast-1.eventgrid.azure.net/api/events";
       const topicKey = process.env.MESSAGE_PROCESSOR_TOPIC_KEY;
@@ -54,19 +76,17 @@ export async function sendMessageSlack(
         new AzureKeyCredential(topicKey)
       );
 
-      const events: SendEventGridEventInput<{
-        assistant_id: string;
-        message: string;
-        response_url: string;
-      }>[] = [
+      const events: SendEventGridEventInput<SlackMessageEvent>[] = [
         {
           eventType: "Message.Slack",
-          subject: `message/slack/${org_id}`,
+          subject: `message/slack/${organisation_id}`,
           dataVersion: "1.0",
           data: {
-            assistant_id,
-            message: data,
+            organisation_id,
+            message: messageText,
             response_url,
+            user_id: user_name,
+            user_name,
           },
         },
       ];
@@ -96,7 +116,7 @@ export async function sendMessageSlack(
     return {
       status: 500,
       jsonBody: {
-        error: "Failed to send message",
+        error: "The Slack message could not be parsed",
       },
     };
   }

@@ -1,6 +1,24 @@
 import { app, EventGridEvent, InvocationContext } from "@azure/functions";
 import { MessageResponse } from "../models/MessageResponse";
 import { handleSingleMessageForOpenAI } from "../OpenAIHandler";
+import { db, saveMessageResponsesToDatabase } from "../DatabaseController";
+import {
+  ConversationChannelType,
+  ConversationStatusType,
+  MessageCreatorType,
+  NewContact,
+  NewConversation,
+  NewMessage,
+} from "../models/Database";
+import { createID } from "../Utils";
+
+export type SlackMessageEvent = {
+  organisation_id: string;
+  message: string;
+  response_url: string;
+  user_id: string;
+  user_name: string;
+};
 
 export async function messageProcessor(
   event: EventGridEvent,
@@ -19,38 +37,106 @@ const processSlackMessage = async (
   context: InvocationContext
 ) => {
   /// Process
-  const messageResponse: MessageResponse[] = await handleSingleMessageForOpenAI(
-    event.data.assistant_id.toString(),
-    event.data.message.toString(),
-    context
-  );
+  try {
+    const data = event.data as SlackMessageEvent;
 
-  let text = messageResponse.map((r) => r.message).join("\n");
-  const citationsWithURLs: string[] = messageResponse
-    .flatMap((m) => m.citations && m.citations.map((c) => c.url))
-    .filter((c) => c !== undefined && c !== "");
-  if (citationsWithURLs.length > 0) {
-    // Process citations with URLs
-    text += `\n\nThese links might help you:\n${citationsWithURLs.join("\n")}`;
+    const { assistant_id } = await db
+      .selectFrom("organisations")
+      .select(["assistant_id"])
+      .where("id", "=", data.organisation_id)
+      .executeTakeFirst();
+
+    const messageResponse: MessageResponse[] =
+      await handleSingleMessageForOpenAI(
+        assistant_id,
+        data.message.toString(),
+        context
+      );
+
+    let response = messageResponse.map((r) => r.message).join("\n");
+    const citationsWithURLs: string[] = messageResponse
+      .flatMap((m) => m.citations && m.citations.map((c) => c.url))
+      .filter((c) => c !== undefined && c !== "");
+    if (citationsWithURLs.length > 0) {
+      // Process citations with URLs
+      response += `\n\nThese links might help you:\n${citationsWithURLs.join(
+        "\n"
+      )}`;
+    }
+    response +=
+      "\nIf this solved your question give the message a :white_check_mark:";
+
+    await postResponseToSlack(data.response_url, response)
+      .then(() => context.log("Processed Slack Message"))
+      .catch((error) => {
+        context.log(error);
+      });
+
+    // Save to db
+    let { id: contact_id } = await db
+      .selectFrom("contacts")
+      .select(["id"])
+      .where("slack_id", "=", data.user_id)
+      .executeTakeFirst();
+    if (!contact_id) {
+      // we need to create a new contact
+      const newContact: NewContact = {
+        id: createID("cont"),
+        organisation_id: data.organisation_id,
+        name: data.user_name,
+        slack_id: data.user_id,
+      };
+      await db.insertInto("contacts").values(newContact).execute();
+      contact_id = newContact.id;
+    }
+
+    const newConversation: NewConversation = {
+      id: createID("conv"),
+      organisation_id: data.organisation_id,
+      contact_id,
+      created_at: Date.now(),
+      last_message_at: Date.now(),
+      interrupted: false,
+      status: ConversationStatusType.OPEN,
+      sentiment: 0,
+      channel: ConversationChannelType.SLACK,
+      channel_id: data.response_url,
+    };
+    await db.insertInto("conversations").values(newConversation).execute();
+
+    const inboundMessage: NewMessage = {
+      id: createID("msg"),
+      conversation_id: newConversation.id,
+      message: data.message,
+      creator: MessageCreatorType.CONTACT,
+      version: 1,
+      created_at: Date.now(),
+      user_id: contact_id,
+    };
+
+    await db.insertInto("messages").values(inboundMessage).execute();
+    await saveMessageResponsesToDatabase(messageResponse, false);
+  } catch (error) {
+    context.error("Error processing Slack message: ", error);
+    await postResponseToSlack(
+      event.data.response_url.toString(),
+      "An error occured wth this message, please contact your adminstrator."
+    );
   }
-  text +=
-    "\nIf this solved your question give the message a :white_check_mark:";
+};
 
-  await fetch(event.data.response_url.toString(), {
+const postResponseToSlack = async (response_url: string, response: string) => {
+  return fetch(response_url, {
     method: "POST",
     body: JSON.stringify({
       response_type: "in_channel",
       replace_original: true,
-      text,
+      response,
     }),
     headers: {
       "Content-type": "application/json; charset=UTF-8",
     },
-  })
-    .then(() => context.log("Processed Slack Message"))
-    .catch((error) => {
-      context.log(error);
-    });
+  });
 };
 
 app.eventGrid("messageProcessor", {

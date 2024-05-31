@@ -15,6 +15,7 @@ export interface ContactTable {
   name: string;
   email: string | undefined;
   phone: string | undefined;
+  slack_id: string | undefined;
 }
 
 export type Contact = Selectable<ContactTable>;
@@ -32,6 +33,15 @@ export interface ConversationTable {
   status: ConversationStatusType;
   summary: string | undefined;
   sentiment: number | undefined;
+  channel: ConversationChannelType;
+  channel_id: string | undefined;
+}
+
+export enum ConversationChannelType {
+  CHAT = "CHAT",
+  SLACK = "SLACK",
+  EMAIL = "EMAIL",
+  WHATSAPP = "WHATSAPP",
 }
 
 export enum ConversationStatusType {

@@ -6,12 +6,12 @@ import {
 } from "@azure/functions";
 import { MessageRequest } from "../models/MessageRequest";
 import { MessageResponse } from "../models/MessageResponse";
+import { MessageCreatorType, NewMessage } from "../models/Database";
 import {
-  ConversationStatusType,
-  MessageCreatorType,
-  NewMessage,
-} from "../models/Database";
-import { db } from "../DatabaseController";
+  db,
+  saveMessageResponsesToDatabase,
+  saveMessagesToDatabase,
+} from "../DatabaseController";
 import { handleMessageForOpenAI } from "../OpenAIHandler";
 import { authenticateRequest } from "../AuthController";
 
@@ -104,53 +104,6 @@ export async function sendMessage(
     };
   }
 }
-
-const saveMessagesToDatabase = (
-  messages: NewMessage[],
-  setInterrupted: boolean
-) => {
-  return Promise.all([
-    db.insertInto("messages").values(messages).execute(),
-    setInterrupted
-      ? db
-          .updateTable("conversations")
-          .set({
-            last_message_at: Math.max(...messages.map((r) => r.created_at)),
-            status: ConversationStatusType.OPEN,
-            interrupted: true,
-          })
-          .where("id", "=", messages[0].conversation_id)
-          .execute()
-      : db
-          .updateTable("conversations")
-          .set({
-            last_message_at: Math.max(...messages.map((r) => r.created_at)),
-            status: ConversationStatusType.OPEN,
-          })
-          .where("id", "=", messages[0].conversation_id)
-          .execute(),
-  ]);
-};
-
-const saveMessageResponsesToDatabase = (
-  messages: MessageResponse[] | undefined,
-  setInterrupted: boolean
-) => {
-  const messagesToSave: NewMessage[] = messages
-    ? messages.map((r) => {
-        return {
-          id: r.id,
-          conversation_id: r.conversation_id,
-          message: r.message,
-          created_at: r.created_at,
-          creator: r.creator,
-          version: r.version,
-          citations: r.citations ? JSON.stringify(r.citations) : undefined,
-        };
-      })
-    : undefined;
-  return saveMessagesToDatabase(messagesToSave, setInterrupted);
-};
 
 app.http("sendMessage", {
   methods: ["POST", "OPTIONS"],
