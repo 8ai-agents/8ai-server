@@ -72,22 +72,26 @@ const processSlackMessage = async (
         context.log(error);
       });
 
+    let contact_id: string = createID("cont");
     // Save to db
-    let { id: contact_id } = await db
+    const contact = await db
       .selectFrom("contacts")
       .select(["id"])
       .where("slack_id", "=", data.user_id)
       .executeTakeFirst();
-    if (!contact_id) {
+
+    if (contact && contact.id) {
+      contact_id = contact.id;
+    } else {
       // we need to create a new contact
       const newContact: NewContact = {
-        id: createID("cont"),
+        id: contact_id,
         organisation_id: data.organisation_id,
         name: data.user_name,
         slack_id: data.user_id,
       };
       await db.insertInto("contacts").values(newContact).execute();
-      contact_id = newContact.id;
+      contact.id = newContact.id;
     }
 
     const newConversation: NewConversation = {
@@ -111,7 +115,6 @@ const processSlackMessage = async (
       creator: MessageCreatorType.CONTACT,
       version: 1,
       created_at: Date.now(),
-      user_id: contact_id,
     };
 
     await db.insertInto("messages").values(inboundMessage).execute();
