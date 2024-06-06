@@ -95,10 +95,14 @@ export async function cronSummariseConversations(
         (r) => r.error === undefined
       ) as SentimentAnalysisSuccessResult[];
 
-      // Int where negative means more is negative than positive
-      sentiment =
-        successResults.filter((r) => r.sentiment === "positive").length -
-        successResults.filter((r) => r.sentiment === "negative").length * 2;
+      // Int where negative means more is negative than positive, prioritises negative sentiment and more recent messages
+      sentiment = successResults
+        .map(
+          (r, i) =>
+            (r.confidenceScores.positive + r.confidenceScores.negative * -2) *
+            (4 / (i + 4))
+        )
+        .reduce((a, b) => a + b, 0);
 
       context.log(`NPS Sentiment for Conversation ${id}: ${sentiment}`);
 
