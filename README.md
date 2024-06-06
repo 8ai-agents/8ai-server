@@ -1,12 +1,12 @@
 # 8ai Chatbot Backend
 
-```
+```bash
 npm i
 ```
 
 ## Development
 
-```
+```bash
 npm run dev
 ```
 
