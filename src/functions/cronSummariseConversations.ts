@@ -73,6 +73,7 @@ export async function cronSummariseConversations(
       context.error(
         `Summarising Conversation Error ${id} - ${JSON.stringify(err.message)}`
       );
+      summary = "Can't summarise this conversation at the moment.";
     }
 
     try {
