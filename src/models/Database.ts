@@ -7,6 +7,7 @@ export interface Database {
   users: UserTable;
   organisations: OrganisationTable;
   organisation_files: OrganisationFileTable;
+  organisation_emails: OrganisationEmailTable;
 }
 
 export interface ContactTable {
@@ -34,7 +35,7 @@ export interface ConversationTable {
   summary: string | undefined;
   sentiment: number | undefined;
   channel: ConversationChannelType;
-  channel_id: string | undefined;
+  channel_id: string | undefined; // This is a Slack thread ID, or an email thread ID
 }
 
 export enum ConversationChannelType {
@@ -122,3 +123,16 @@ export interface OrganisationFileTable {
 
 export type OrganisationFile = Selectable<OrganisationFileTable>;
 export type NewOrganisationFile = Insertable<OrganisationFileTable>;
+
+export interface OrganisationEmailTable {
+  id: string;
+  organisation_id: string;
+  username: string;
+  password: string;
+  host: string;
+  port: number;
+  active: number;
+  last_updated: number;
+}
+
+export type OrganisationEmail = Selectable<OrganisationEmailTable>;
