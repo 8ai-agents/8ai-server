@@ -24,7 +24,8 @@ export async function sendMessageSlackNew(
       },
     };
   }
-  return;
+  context.log(JSON.stringify(messageRequest));
+  return { status: 200 };
 
   /**let data: FormDataEntryValue | null = formData.get("text");
   if (data && typeof data == "string") {
