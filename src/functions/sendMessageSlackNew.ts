@@ -87,6 +87,6 @@ export async function sendMessageSlackNew(
 app.http("sendMessageSlackNew", {
   methods: ["POST"],
   authLevel: "anonymous",
-  route: "/chat/slack/new",
+  route: "/chat/slacknew",
   handler: sendMessageSlackNew,
 });
