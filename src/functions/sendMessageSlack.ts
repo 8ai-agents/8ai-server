@@ -11,7 +11,7 @@ import {
   SendEventGridEventInput,
 } from "@azure/eventgrid";
 import { db } from "../DatabaseController";
-import { SlackMessageEvent } from "./messageProcessor";
+import { SlackSlashMessageEvent } from "./messageProcessor";
 
 export async function sendMessageSlack(
   request: HttpRequest,
@@ -76,7 +76,7 @@ export async function sendMessageSlack(
         new AzureKeyCredential(topicKey)
       );
 
-      const events: SendEventGridEventInput<SlackMessageEvent>[] = [
+      const events: SendEventGridEventInput<SlackSlashMessageEvent>[] = [
         {
           eventType: "Message.Slack",
           subject: `message/slack/${organisation_id}`,

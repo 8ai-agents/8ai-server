@@ -4,20 +4,20 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
+import { EnvelopedEvent, GenericMessageEvent } from "@slack/bolt";
 import {
-  EnvelopedEvent,
-  GenericMessageEvent,
-  App as SlackApp,
-} from "@slack/bolt";
-import { SendEventGridEventInput } from "@azure/eventgrid";
-import { SlackMessageEvent } from "./messageProcessor";
+  AzureKeyCredential,
+  EventGridPublisherClient,
+  SendEventGridEventInput,
+} from "@azure/eventgrid";
+import { SlackBotMessageEvent } from "./messageProcessor";
 
 export async function sendMessageSlackNew(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const organisation_id = "org_sadsads";
+    const organisation_id = "org_b4de41d6db9d11bfd600eca07e880a3a"; // TODO stop hardcoding
     /*
     const organisation_id = request.params.org_id as string;
     if (!organisation_id) {
@@ -46,11 +46,6 @@ export async function sendMessageSlackNew(
     }
       */
 
-    const slackApp = new SlackApp({
-      token: process.env.SLACK_BOT_TOKEN,
-      signingSecret: process.env.SLACK_SIGNING_SECRET,
-    });
-
     // Process Message
     const messageRequest = (await request.json()) as
       | EnvelopedEvent<GenericMessageEvent>
@@ -67,31 +62,22 @@ export async function sendMessageSlackNew(
       // Message is a Slack Message
       context.log(JSON.stringify(messageRequest));
 
-      const eventPayload: SendEventGridEventInput<SlackMessageEvent>[] = [
+      const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
         {
-          eventType: "Message.Slack",
+          eventType: "Message.SlackBot",
           subject: `message/slack/${organisation_id}`,
           dataVersion: "1.0",
           data: {
             organisation_id,
             message: messageRequest.event.text,
-            response_url: "",
             user_id: messageRequest.event.user,
-            user_name: "",
+            channel_id: messageRequest.event.channel,
+            thread_ts: messageRequest.event.ts,
           },
         },
       ];
       context.log(JSON.stringify(eventPayload));
 
-      await slackApp.client.chat.postMessage({
-        token: process.env.SLACK_BOT_TOKEN,
-        channel: messageRequest.event.channel,
-        thread_ts: messageRequest.event.ts,
-        text: "Assistant can respond to this message. [test link](https://8ai.co.nz)",
-      });
-
-      /*
-      // Commented out for testing
       // Publish message to EventGrid
       const topicEndpoint =
         "https://8ai-messaging-topic.australiaeast-1.eventgrid.azure.net/api/events";
@@ -104,129 +90,16 @@ export async function sendMessageSlackNew(
       );
 
       try {
-        await eventGridClient.send(events);
+        await eventGridClient.send(eventPayload);
         return {
           status: 200,
-          jsonBody: {
-            response_type: "in_channel",
-            text: "Assistant is thinking...",
-          },
         };
       } catch (error) {
         return {
           status: 500,
         };
       }
-        */
     }
-
-    /*
-  {
-  "token": "TOo6qhf6qXrsvF0EFLri6UVK",
-  "team_id": "T073VHQKJDA",
-  "context_team_id": "T073VHQKJDA",
-  "context_enterprise_id": null,
-  "api_app_id": "A07680VKG87",
-  "event": {
-    "user": "U074FT73Z0Q",
-    "type": "message",
-    "ts": "1717750968.498279",
-    "client_msg_id": "98421f2f-2b18-40b4-b548-00dc9d0f2433",
-    "text": "<@U077E0H9MRN> try this message",
-    "team": "T073VHQKJDA",
-    "blocks": [
-      {
-        "type": "rich_text",
-        "block_id": "KRs/H",
-        "elements": [
-          {
-            "type": "rich_text_section",
-            "elements": [
-              {
-                "type": "user",
-                "user_id": "U077E0H9MRN"
-              },
-              {
-                "type": "text",
-                "text": " try this message"
-              }
-            ]
-          }
-        ]
-      }
-    ],
-    "channel": "C073CGYQQH5",
-    "event_ts": "1717750968.498279",
-    "channel_type": "channel"
-  },
-  "type": "event_callback",
-  "event_id": "Ev076V9GGGDU",
-  "event_time": 1717750968,
-  "authorizations": [
-    {
-      "enterprise_id": null,
-      "team_id": "T073VHQKJDA",
-      "user_id": "U077E0H9MRN",
-      "is_bot": true,
-      "is_enterprise_install": false
-    }
-  ],
-  "is_ext_shared_channel": false,
-  "event_context": "4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUMDczVkhRS0pEQSIsImFpZCI6IkEwNzY4MFZLRzg3IiwiY2lkIjoiQzA3M0NHWVFRSDUifQ"
-}
-  */
-
-    /**let data: FormDataEntryValue | null = formData.get("text");
-  if (data && typeof data == "string") {
-    context.log(`Processing message from Slack ${data}`);
-    const openai = new OpenAI({
-      apiKey: process.env.OPEN_API_KEY,
-    });
-    const assistant_id = "asst_rkDgpBkruW7HZqC0wwesebY2";
-    const thread = await openai.beta.threads.createAndRunPoll(
-      {
-        assistant_id,
-        instructions: "",
-        thread: {
-          messages: [
-            {
-              role: "user",
-              content: data,
-            },
-          ],
-        },
-      },
-      { pollIntervalMs: 300 }
-    );
-    const messageResponse: MessageResponse[] = [];
-
-    if (thread.status === "completed") {
-      const messages = await openai.beta.threads.messages.list(
-        thread.thread_id
-      );
-      for (const message of messages.data.slice(
-        0,
-        messages.data.findIndex((m) => m.role === "user")
-      )) {
-        // Gets all messages from the assistant since last user message
-        if (message.content[0].type === "text") {
-          messageResponse.push(processOpenAIMessage(message, ""));
-        }
-      }
-    } else {
-      context.error(thread.status);
-      throw new Error("OpenAI request failed");
-    }
-    return {
-      status: 200,
-      jsonBody: {
-        response_type: "in_channel",
-        text: messageResponse.map((r) => r.message).join("\n"),
-      },
-    };
-  }
-
-*/
   } catch (e) {
     context.error(e);
     return {
