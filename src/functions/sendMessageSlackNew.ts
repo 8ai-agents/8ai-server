@@ -58,8 +58,11 @@ export async function sendMessageSlackNew(
           challenge: messageRequest["challenge"],
         },
       };
-    } else if (messageRequest.type === "event_callback") {
-      // Message is a Slack Message
+    } else if (
+      messageRequest.type === "event_callback" &&
+      messageRequest.event.bot_id
+    ) {
+      // Message is a Slack Message and is not sent by a bot
       context.log(JSON.stringify(messageRequest));
 
       const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
