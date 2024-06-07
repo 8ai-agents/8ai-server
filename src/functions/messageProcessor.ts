@@ -11,7 +11,6 @@ import {
   NewMessage,
 } from "../models/Database";
 import { createID } from "../Utils";
-import { App as SlackApp } from "@slack/bolt";
 
 export type SlackSlashMessageEvent = {
   organisation_id: string;
@@ -53,10 +52,6 @@ const processSlackBotMessage = async (
   /// Process
   try {
     const data = event.data as SlackBotMessageEvent;
-    const slackApp = new SlackApp({
-      token: process.env.SLACK_BOT_TOKEN,
-      signingSecret: process.env.SLACK_SIGNING_SECRET,
-    });
 
     const { assistant_id } = await db
       .selectFrom("organisations")
@@ -84,13 +79,14 @@ const processSlackBotMessage = async (
     response +=
       "\nIf this solved your question give the message a :white_check_mark:";
 
-    await slackApp.client.chat.postMessage({
-      channel: data.channel_id,
-      text: response,
-      thread_ts: data.thread_ts,
-      token: process.env.SLACK_BOT_TOKEN,
-      headers: "User-Agent: eightaibot/v1.0",
-    });
+    await postBotResponseToSlack(
+      {
+        channel: data.channel_id,
+        text: response,
+        thread_ts: data.thread_ts,
+      },
+      context
+    );
 
     let contact_id: string = createID("cont");
     // Save to db
@@ -107,8 +103,7 @@ const processSlackBotMessage = async (
       const newContact: NewContact = {
         id: contact_id,
         organisation_id: data.organisation_id,
-        name: (await slackApp.client.users.info({ user: data.user_id })).user
-          .name,
+        name: "",
         slack_id: data.user_id,
       };
       await db.insertInto("contacts").values(newContact).execute();
@@ -146,7 +141,7 @@ const processSlackBotMessage = async (
     await saveMessageResponsesToDatabase(messageResponse, false);
   } catch (error) {
     context.error("Error processing Slack message: ", error);
-    await postResponseToSlack(
+    await postSlashResponseToSlack(
       event.data.response_url.toString(),
       "An error occured wth this message, please contact your adminstrator.",
       context
@@ -188,7 +183,7 @@ const processSlackSlashMessage = async (
     response +=
       "\nIf this solved your question give the message a :white_check_mark:";
 
-    await postResponseToSlack(data.response_url, response, context);
+    await postSlashResponseToSlack(data.response_url, response, context);
 
     let contact_id: string = createID("cont");
     // Save to db
@@ -243,7 +238,7 @@ const processSlackSlashMessage = async (
     await saveMessageResponsesToDatabase(messageResponse, false);
   } catch (error) {
     context.error("Error processing Slack message: ", error);
-    await postResponseToSlack(
+    await postSlashResponseToSlack(
       event.data.response_url.toString(),
       "An error occured wth this message, please contact your adminstrator.",
       context
@@ -251,7 +246,30 @@ const processSlackSlashMessage = async (
   }
 };
 
-const postResponseToSlack = async (
+const postBotResponseToSlack = async (
+  data: {
+    channel: string;
+    text: string;
+    thread_ts: string;
+  },
+  context: InvocationContext
+) => {
+  return await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: {
+      "Content-type": "application/json",
+      Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
+    },
+  })
+    .then(() => context.log("Processed Slack Message"))
+    .catch((error) => {
+      context.log(error);
+      throw error;
+    });
+};
+
+const postSlashResponseToSlack = async (
   response_url: string,
   text: string,
   context: InvocationContext
