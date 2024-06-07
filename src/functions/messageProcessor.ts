@@ -89,7 +89,6 @@ const processSlackBotMessage = async (
       text: response,
       thread_ts: data.thread_ts,
       token: process.env.SLACK_BOT_TOKEN,
-      headers: { "User-Agent": "8ai-bot/1.0" },
     });
 
     let contact_id: string = createID("cont");
