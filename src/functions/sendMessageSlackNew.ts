@@ -74,7 +74,7 @@ export async function sendMessageSlackNew(
           dataVersion: "1.0",
           data: {
             organisation_id,
-            message: JSON.stringify(messageRequest.event.blocks),
+            message: messageRequest.event.text,
             response_url: "",
             user_id: messageRequest.event.user,
             user_name: "",
@@ -84,9 +84,10 @@ export async function sendMessageSlackNew(
       context.log(JSON.stringify(eventPayload));
 
       await slackApp.client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN,
         channel: messageRequest.event.channel,
-        text: "Assistant can respond to this message. [test link](https://8ai.co.nz)",
         thread_ts: messageRequest.event.ts,
+        text: "Assistant can respond to this message. [test link](https://8ai.co.nz)",
       });
 
       /*
