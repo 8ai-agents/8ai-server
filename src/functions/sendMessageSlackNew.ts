@@ -60,7 +60,7 @@ export async function sendMessageSlackNew(
       };
     } else if (
       messageRequest.type === "event_callback" &&
-      messageRequest.event.bot_id
+      !messageRequest.event.bot_id
     ) {
       // Message is a Slack Message and is not sent by a bot
       context.log(JSON.stringify(messageRequest));
