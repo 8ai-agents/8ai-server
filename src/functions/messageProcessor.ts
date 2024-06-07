@@ -11,6 +11,7 @@ import {
   NewMessage,
 } from "../models/Database";
 import { createID } from "../Utils";
+import { WebClient as SlackClient } from "@slack/web-api";
 
 export type SlackSlashMessageEvent = {
   organisation_id: string;
@@ -52,7 +53,7 @@ const processSlackBotMessage = async (
   /// Process
   try {
     const data = event.data as SlackBotMessageEvent;
-
+    const slackClient = new SlackClient(process.env.SLACK_BOT_TOKEN);
     const { assistant_id } = await db
       .selectFrom("organisations")
       .select(["assistant_id"])
@@ -79,14 +80,13 @@ const processSlackBotMessage = async (
     response +=
       "\nIf this solved your question give the message a :white_check_mark:";
 
-    await postBotResponseToSlack(
-      {
-        channel: data.channel_id,
-        text: response,
-        thread_ts: data.thread_ts,
-      },
-      context
-    );
+    await slackClient.chat.postMessage({
+      channel: data.channel_id,
+      text: response,
+      thread_ts: data.thread_ts,
+      token: process.env.SLACK_BOT_TOKEN,
+      // You could also use a blocks[] array to send richer content
+    });
 
     let contact_id: string = createID("cont");
     // Save to db
@@ -244,29 +244,6 @@ const processSlackSlashMessage = async (
       context
     );
   }
-};
-
-const postBotResponseToSlack = async (
-  data: {
-    channel: string;
-    text: string;
-    thread_ts: string;
-  },
-  context: InvocationContext
-) => {
-  return await fetch("https://slack.com/api/chat.postMessage", {
-    method: "POST",
-    body: JSON.stringify(data),
-    headers: {
-      "Content-type": "application/json",
-      Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
-    },
-  })
-    .then(() => context.log("Processed Slack Message"))
-    .catch((error) => {
-      context.log(error);
-      throw error;
-    });
 };
 
 const postSlashResponseToSlack = async (
