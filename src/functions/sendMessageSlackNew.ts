@@ -9,7 +9,6 @@ import {
   GenericMessageEvent,
   App as SlackApp,
 } from "@slack/bolt";
-import { db } from "../DatabaseController";
 import { SendEventGridEventInput } from "@azure/eventgrid";
 import { SlackMessageEvent } from "./messageProcessor";
 
@@ -18,6 +17,8 @@ export async function sendMessageSlackNew(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
+    const organisation_id = "org_sadsads";
+    /*
     const organisation_id = request.params.org_id as string;
     if (!organisation_id) {
       return {
@@ -43,6 +44,7 @@ export async function sendMessageSlackNew(
         },
       };
     }
+      */
 
     const slackApp = new SlackApp({
       token: process.env.SLACK_BOT_TOKEN,
@@ -83,7 +85,8 @@ export async function sendMessageSlackNew(
 
       await slackApp.client.chat.postMessage({
         channel: messageRequest.event.channel,
-        text: "Assistant is thinking...",
+        text: "Assistant can respond to this message. [test link](https://8ai.co.nz)",
+        thread_ts: messageRequest.event.ts,
       });
 
       /*
