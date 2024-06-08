@@ -12,6 +12,19 @@ import {
 } from "../models/Database";
 import { createID } from "../Utils";
 
+const adminNames = [
+  "Adam Jones",
+  "Florence Hinder",
+  "Luke Drago",
+  "Dewi",
+  "Li-Lian",
+  "Will Saunter",
+];
+
+const isAdmin = (userName: string): boolean => {
+  return adminNames.includes(userName);
+};
+
 export type SlackSlashMessageEvent = {
   organisation_id: string;
   message: string;
@@ -115,7 +128,7 @@ const processSlackBotMessage = async (
       contact_id,
       created_at: Date.now(),
       last_message_at: Date.now(),
-      interrupted: false,
+      interrupted,
       status: ConversationStatusType.OPEN,
       sentiment: 0,
       channel: ConversationChannelType.SLACK,
@@ -205,6 +218,8 @@ const processSlackSlashMessage = async (
       };
       await db.insertInto("contacts").values(newContact).execute();
     }
+
+    const interrupted = contact ? isAdmin(contact.name) : false;
 
     const newConversation: NewConversation = {
       id: createID("conv"),
