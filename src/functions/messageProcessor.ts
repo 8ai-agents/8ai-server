@@ -22,10 +22,6 @@ const adminNames = [
   "Will Saunter",
 ];
 
-// const isAdmin = (userName: string): boolean => {
-//   return adminNames.includes(userName);
-// };
-
 export type SlackSlashMessageEvent = {
   organisation_id: string;
   message: string;
@@ -46,18 +42,22 @@ export async function messageProcessor(
   event: EventGridEvent,
   context: InvocationContext
 ): Promise<void> {
-  if (event.eventType === "Message.Slack") {
-    // This is for a slash command
-    context.log("Incoming Slack Slash Command Message: ", event);
-    await processSlackSlashMessage(event, context);
-  } else if (event.eventType === "Message.SlackBot") {
-    // This is for a bot message
-    context.log("Incoming SlackBot Message: ", event);
-    await processSlackBotMessage(event, context);
-  } else {
-    context.log("Don't know how to process this event: ", event);
-  }
-}
+  try {
+    if (event.eventType === "Message.Slack") {
+      const data = event.data as SlackBotMessageEvent | SlackSlashMessageEvent;
+
+      // Extract user ID from the message payload
+      let userId: string;
+      if ("user_id" in data) {
+        userId = data.user_id;
+         // Log the user ID
+        context.log("User ID:", userId); 
+      } else {
+        // If user ID is not available in the payload, handle the error or skip processing
+        context.log("User ID not found in the message payload.");
+        return;
+      }
+};
 
 const processSlackBotMessage = async (
   event: EventGridEvent,
