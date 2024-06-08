@@ -21,9 +21,9 @@ const adminNames = [
   "Will Saunter",
 ];
 
-const isAdmin = (userName: string): boolean => {
-  return adminNames.includes(userName);
-};
+// const isAdmin = (userName: string): boolean => {
+//   return adminNames.includes(userName);
+// };
 
 export type SlackSlashMessageEvent = {
   organisation_id: string;
@@ -105,7 +105,7 @@ const processSlackBotMessage = async (
     // Save to db
     const contact = await db
       .selectFrom("contacts")
-      .select(["id"])
+      .select(["id", "name"])
       .where("slack_id", "=", data.user_id)
       .executeTakeFirst();
 
@@ -128,7 +128,7 @@ const processSlackBotMessage = async (
       contact_id,
       created_at: Date.now(),
       last_message_at: Date.now(),
-      interrupted,
+      interrupted: adminNames.includes(contact.name) ? true : false,
       status: ConversationStatusType.OPEN,
       sentiment: 0,
       channel: ConversationChannelType.SLACK,
@@ -202,7 +202,7 @@ const processSlackSlashMessage = async (
     // Save to db
     const contact = await db
       .selectFrom("contacts")
-      .select(["id"])
+      .select(["id", "name"])
       .where("slack_id", "=", data.user_id)
       .executeTakeFirst();
 
@@ -219,15 +219,13 @@ const processSlackSlashMessage = async (
       await db.insertInto("contacts").values(newContact).execute();
     }
 
-    const interrupted = contact ? isAdmin(contact.name) : false;
-
     const newConversation: NewConversation = {
       id: createID("conv"),
       organisation_id: data.organisation_id,
       contact_id,
       created_at: Date.now(),
       last_message_at: Date.now(),
-      interrupted: false,
+      interrupted: adminNames.includes(contact.name) ? true : false,
       status: ConversationStatusType.OPEN,
       sentiment: 0,
       channel: ConversationChannelType.SLACK,
