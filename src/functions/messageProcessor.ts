@@ -14,7 +14,7 @@ import { createID } from "../Utils";
 
 const adminNames = [
   "Adam Jones",
-  "Florence Hinder",
+  "James",
   "Luke Drago",
   "Dewi",
   "Li-Lian",
