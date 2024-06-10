@@ -13,7 +13,7 @@ import {
 import { db } from "../DatabaseController";
 import { SlackSlashMessageEvent } from "./messageProcessor";
 
-export async function sendMessageSlack(
+export async function sendMessageSlackSlash(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -122,9 +122,9 @@ export async function sendMessageSlack(
   }
 }
 
-app.http("sendMessageSlack", {
+app.http("sendMessageSlackSlash", {
   methods: ["POST", "OPTIONS"],
   authLevel: "anonymous",
   route: "/chat/slack/{org_id}",
-  handler: sendMessageSlack,
+  handler: sendMessageSlackSlash,
 });

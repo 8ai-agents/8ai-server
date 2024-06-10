@@ -12,7 +12,7 @@ import {
 } from "@azure/eventgrid";
 import { SlackBotMessageEvent } from "./messageProcessor";
 
-export async function sendMessageSlackNew(
+export async function sendMessageSlackBot(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -69,7 +69,7 @@ export async function sendMessageSlackNew(
       const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
         {
           eventType: "Message.SlackBot",
-          subject: `message/slack/${organisation_id}`,
+          subject: `message/slackbot/${organisation_id}`,
           dataVersion: "1.0",
           data: {
             organisation_id,
@@ -116,9 +116,9 @@ export async function sendMessageSlackNew(
   }
 }
 
-app.http("sendMessageSlackNew", {
+app.http("sendMessageSlackBot", {
   methods: ["POST"],
   authLevel: "anonymous",
-  route: "/chat/slacknew",
-  handler: sendMessageSlackNew,
+  route: "/chat/slackbot",
+  handler: sendMessageSlackBot,
 });

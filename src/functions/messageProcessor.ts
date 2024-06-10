@@ -68,7 +68,9 @@ const processSlackBotMessage = async (
     let user_id: string | undefined = undefined;
 
     if (slackUser.is_admin) {
-      context.log("Ignoring message from admin: ", slackUser.real_name);
+      context.log(
+        `Ignoring message from admin: ${slackUser.real_name} ${slackUser.profile?.email}`
+      );
 
       if (slackUser.profile?.email) {
         // Try get user ID
