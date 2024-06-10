@@ -11,7 +11,7 @@ import {
   NewMessage,
 } from "../models/Database";
 import { createID } from "../Utils";
-import { WebClient as SlackWebClient } from "@slack/web-api";
+import { UsersInfoResponse } from "@slack/web-api";
 
 const adminNames = [
   "Adam Jones",
@@ -76,8 +76,9 @@ const processSlackBotMessage = async (
 
     // Get user name from Slack API
     const slackUser = await getUserFromSlack(data.user_id, context);
+    context.log(slackUser);
 
-    if (slackUser.user.is_admin) {
+    if (slackUser.is_admin) {
       // TODO We save the message and mark the conversation as interrupted
     } else {
       // We answer the message
@@ -125,9 +126,9 @@ const processSlackBotMessage = async (
         const newContact: NewContact = {
           id: contact_id,
           organisation_id: data.organisation_id,
-          name: slackUser.user.real_name,
-          email: slackUser.user.profile.email,
-          phone: slackUser.user.profile.phone,
+          name: slackUser.real_name,
+          email: slackUser.profile.email,
+          phone: slackUser.profile.phone,
           slack_id: data.user_id,
         };
         await db.insertInto("contacts").values(newContact).execute();
@@ -329,21 +330,31 @@ const postSlashResponseToSlack = async (
     });
 };
 
-const getUserFromSlack = async (user: string, context: InvocationContext) => {
+const getUserFromSlack = async (
+  user_id: string,
+  context: InvocationContext
+) => {
   // WebClient instantiates a client that can call API methods
   // When using Bolt, you can use either `app.client` or the `client` passed to listeners.
-  const client = new SlackWebClient(process.env.SLACK_BOT_TOKEN);
 
-  try {
-    // Call the users.info method using the WebClient
-    const userResult = await client.users.info({
-      user,
+  return await fetch("https://slack.com/api/users.info", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: `user=${user_id}`,
+  })
+    .then(async (response) => await response.json())
+    .then(async (response: UsersInfoResponse) =>
+      response.ok && response.user
+        ? response.user
+        : Promise.reject(response.error)
+    )
+    .catch((error) => {
+      context.log(error);
+      throw error;
     });
-    context.log(userResult);
-    return userResult;
-  } catch (error) {
-    context.error(error);
-  }
 };
 
 app.eventGrid("messageProcessor", {
