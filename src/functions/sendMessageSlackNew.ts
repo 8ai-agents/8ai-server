@@ -78,7 +78,8 @@ export async function sendMessageSlackNew(
             message: messageRequest.event.text,
             user_id: messageRequest.event.user,
             channel_id: messageRequest.event.channel,
-            thread_ts: messageRequest.event.ts,
+            thread_ts:
+              messageRequest.event.thread_ts || messageRequest.event.ts, // If a reply in a thread, the thread_ts is set and we should use that to identify the thread
           },
         },
       ];
