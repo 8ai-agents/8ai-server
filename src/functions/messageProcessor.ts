@@ -11,6 +11,7 @@ import {
   NewMessage,
 } from "../models/Database";
 import { createID } from "../Utils";
+import { WebClient as SlackWebClient } from "@slack/web-api";
 
 const adminNames = [
   "Adam Jones",
@@ -73,86 +74,106 @@ const processSlackBotMessage = async (
       .where("id", "=", data.organisation_id)
       .executeTakeFirst();
 
-    const messageResponse: MessageResponse[] =
-      await handleSingleMessageForOpenAI(
-        assistant_id,
-        data.message.toString(),
+    // Get user name from Slack API
+    const slackUser = await getUserFromSlack(data.user_id, context);
+
+    if (slackUser.user.is_admin) {
+      // TODO We save the message and mark the conversation as interrupted
+    } else {
+      // We answer the message
+      const messageResponse: MessageResponse[] =
+        await handleSingleMessageForOpenAI(
+          assistant_id,
+          data.message.toString(),
+          context
+        );
+
+      let response = messageResponse.map((r) => r.message).join("\n");
+      const citationsWithURLs: string[] = messageResponse
+        .flatMap((m) => m.citations && m.citations.map((c) => c.url))
+        .filter((c) => c !== undefined && c !== "");
+      if (citationsWithURLs.length > 0) {
+        // Process citations with URLs
+        response += `\n\nThese links might help you:\n${citationsWithURLs.join(
+          "\n"
+        )}`;
+      }
+      response +=
+        "\nIf this solved your question give the message a :white_check_mark:";
+
+      await postBotResponseToSlack(
+        {
+          channel: data.channel_id,
+          text: response,
+          thread_ts: data.thread_ts,
+        },
         context
       );
 
-    let response = messageResponse.map((r) => r.message).join("\n");
-    const citationsWithURLs: string[] = messageResponse
-      .flatMap((m) => m.citations && m.citations.map((c) => c.url))
-      .filter((c) => c !== undefined && c !== "");
-    if (citationsWithURLs.length > 0) {
-      // Process citations with URLs
-      response += `\n\nThese links might help you:\n${citationsWithURLs.join(
-        "\n"
-      )}`;
-    }
-    response +=
-      "\nIf this solved your question give the message a :white_check_mark:";
+      // First check if there is an existing contact and conversation
+      let contact_id: string = createID("cont");
+      const contact = await db
+        .selectFrom("contacts")
+        .select(["id"])
+        .where("slack_id", "=", data.user_id)
+        .executeTakeFirst();
 
-    await postBotResponseToSlack(
-      {
-        channel: data.channel_id,
-        text: response,
-        thread_ts: data.thread_ts,
-      },
-      context
-    );
+      if (contact && contact.id) {
+        contact_id = contact.id;
+      } else {
+        // we need to create a new contact
+        const newContact: NewContact = {
+          id: contact_id,
+          organisation_id: data.organisation_id,
+          name: slackUser.user.real_name,
+          slack_id: data.user_id,
+        };
+        await db.insertInto("contacts").values(newContact).execute();
+      }
 
-    let contact_id: string = createID("cont");
-    // Save to db
-    const contact = await db
-      .selectFrom("contacts")
-      .select(["id", "name"])
-      .where("slack_id", "=", data.user_id)
-      .executeTakeFirst();
+      let conversation_id: string = createID("conv");
+      const conversation = await db
+        .selectFrom("conversations")
+        .select(["id"])
+        .where("channel_id", "=", data.thread_ts)
+        .executeTakeFirst();
 
-    if (contact && contact.id) {
-      contact_id = contact.id;
-    } else {
-      // we need to create a new contact
-      const newContact: NewContact = {
-        id: contact_id,
-        organisation_id: data.organisation_id,
-        name: "",
-        slack_id: data.user_id,
+      if (conversation && conversation.id) {
+        conversation_id = conversation.id;
+      } else {
+        // we need to create a new contact
+        const newConversation: NewConversation = {
+          id: conversation_id,
+          organisation_id: data.organisation_id,
+          contact_id,
+          created_at: Date.now(),
+          last_message_at: Date.now(),
+          interrupted: false,
+          status: ConversationStatusType.OPEN,
+          sentiment: 0,
+          channel: ConversationChannelType.SLACK,
+          channel_id: data.thread_ts,
+        };
+        await db.insertInto("conversations").values(newConversation).execute();
+      }
+
+      const inboundMessage: NewMessage = {
+        id: createID("msg"),
+        conversation_id,
+        message: data.message,
+        creator: MessageCreatorType.CONTACT,
+        version: 1,
+        created_at: Date.now(),
       };
-      await db.insertInto("contacts").values(newContact).execute();
+
+      for (const [index, mr] of messageResponse.entries()) {
+        mr.conversation_id;
+        mr.created_at = inboundMessage.created_at + index + 1;
+      }
+
+      await db.insertInto("messages").values(inboundMessage).execute();
+      await saveMessageResponsesToDatabase(messageResponse, false);
     }
-
-    const newConversation: NewConversation = {
-      id: createID("conv"),
-      organisation_id: data.organisation_id,
-      contact_id,
-      created_at: Date.now(),
-      last_message_at: Date.now(),
-      interrupted: adminNames.includes(contact.name) ? true : false,
-      status: ConversationStatusType.OPEN,
-      sentiment: 0,
-      channel: ConversationChannelType.SLACK,
-      channel_id: data.thread_ts,
-    };
-    await db.insertInto("conversations").values(newConversation).execute();
-
-    const inboundMessage: NewMessage = {
-      id: createID("msg"),
-      conversation_id: newConversation.id,
-      message: data.message,
-      creator: MessageCreatorType.CONTACT,
-      version: 1,
-      created_at: Date.now(),
-    };
-
-    for (const [index, mr] of messageResponse.entries()) {
-      mr.conversation_id = newConversation.id;
-      mr.created_at = inboundMessage.created_at + index + 1;
-    }
-
-    await db.insertInto("messages").values(inboundMessage).execute();
-    await saveMessageResponsesToDatabase(messageResponse, false);
   } catch (error) {
     context.error("Error processing Slack message: ", error);
     await postSlashResponseToSlack(
@@ -304,6 +325,23 @@ const postSlashResponseToSlack = async (
       context.log(error);
       throw error;
     });
+};
+
+const getUserFromSlack = async (user: string, context: InvocationContext) => {
+  // WebClient instantiates a client that can call API methods
+  // When using Bolt, you can use either `app.client` or the `client` passed to listeners.
+  const client = new SlackWebClient(process.env.SLACK_BOT_TOKEN);
+
+  try {
+    // Call the users.info method using the WebClient
+    const userResult = await client.users.info({
+      user,
+    });
+    context.log(userResult);
+    return userResult;
+  } catch (error) {
+    context.error(error);
+  }
 };
 
 app.eventGrid("messageProcessor", {
