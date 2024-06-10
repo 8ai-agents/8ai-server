@@ -87,22 +87,20 @@ const processSlackBotMessage = async (
       slackUser.profile?.phone,
       data.organisation_id
     );
-    const conversation_id = await checkGetConversation(
+    let conversation_id = await checkGetConversationUsingSlackThreadID(
       data.thread_ts,
-      data.organisation_id,
-      user_id,
-      contact_id
+      user_id
     );
     let messageResponse: MessageResponse[] | undefined = undefined;
 
     if (!slackUser.is_admin) {
       // We only answer the message if the message sender is not an admin
-      messageResponse = await handleSingleMessageForOpenAI(
+      const openAIResponseData = await handleSingleMessageForOpenAI(
         assistant_id,
         data.message.toString(),
         context
       );
-
+      messageResponse = openAIResponseData.response;
       let response = messageResponse.map((r) => r.message).join("\n");
       const citationsWithURLs: string[] = messageResponse
         .flatMap((m) => m.citations && m.citations.map((c) => c.url))
@@ -124,6 +122,26 @@ const processSlackBotMessage = async (
         },
         context
       );
+
+      conversation_id = openAIResponseData.thread_id.replace(
+        "thread_",
+        "conv_"
+      );
+
+      // Save new conversation with correct OpenAI thread ID
+      const newConversation: NewConversation = {
+        id: conversation_id,
+        organisation_id: data.organisation_id,
+        contact_id,
+        created_at: Date.now(),
+        last_message_at: Date.now(),
+        interrupted: false,
+        status: ConversationStatusType.OPEN,
+        sentiment: 0,
+        channel: ConversationChannelType.SLACK,
+        channel_id: data.thread_ts,
+      };
+      await db.insertInto("conversations").values(newConversation).execute();
     }
 
     if (conversation_id) {
@@ -176,15 +194,14 @@ const processSlackSlashMessage = async (
       .where("id", "=", data.organisation_id)
       .executeTakeFirst();
 
-    const messageResponse: MessageResponse[] =
-      await handleSingleMessageForOpenAI(
-        assistant_id,
-        data.message.toString(),
-        context
-      );
+    const openAIResponseData = await handleSingleMessageForOpenAI(
+      assistant_id,
+      data.message.toString(),
+      context
+    );
 
-    let response = messageResponse.map((r) => r.message).join("\n");
-    const citationsWithURLs: string[] = messageResponse
+    let response = openAIResponseData.response.map((r) => r.message).join("\n");
+    const citationsWithURLs: string[] = openAIResponseData.response
       .flatMap((m) => m.citations && m.citations.map((c) => c.url))
       .filter((c) => c !== undefined && c !== "");
     if (citationsWithURLs.length > 0) {
@@ -205,12 +222,33 @@ const processSlackSlashMessage = async (
       "",
       data.organisation_id
     );
-    const conversation_id = await checkGetConversation(
+
+    // Update conversation
+    let conversation_id = await checkGetConversationUsingSlackThreadID(
       data.response_url,
-      data.organisation_id,
-      undefined,
-      contact_id
+      undefined
     );
+
+    if (!conversation_id) {
+      // Save new conversation with correct OpenAI thread ID
+      conversation_id = openAIResponseData.thread_id.replace(
+        "thread_",
+        "conv_"
+      );
+      const newConversation: NewConversation = {
+        id: conversation_id,
+        organisation_id: data.organisation_id,
+        contact_id,
+        created_at: Date.now(),
+        last_message_at: Date.now(),
+        interrupted: false,
+        status: ConversationStatusType.OPEN,
+        sentiment: 0,
+        channel: ConversationChannelType.SLACK,
+        channel_id: data.response_url,
+      };
+      await db.insertInto("conversations").values(newConversation).execute();
+    }
 
     const inboundMessage: NewMessage = {
       id: createID("msg"),
@@ -221,13 +259,13 @@ const processSlackSlashMessage = async (
       created_at: Date.now(),
     };
 
-    for (const [index, mr] of messageResponse.entries()) {
+    for (const [index, mr] of openAIResponseData.response.entries()) {
       mr.conversation_id = conversation_id;
       mr.created_at = inboundMessage.created_at + index + 1;
     }
 
     await db.insertInto("messages").values(inboundMessage).execute();
-    await saveMessageResponsesToDatabase(messageResponse, false);
+    await saveMessageResponsesToDatabase(openAIResponseData.response, false);
   } catch (error) {
     context.error("Error processing Slack message: ", error);
     await postSlashResponseToSlack(
@@ -340,13 +378,11 @@ const checkGetContactID = async (
   return contact_id;
 };
 
-const checkGetConversation = async (
+const checkGetConversationUsingSlackThreadID = async (
   thread_ts: string,
-  organisation_id: string,
-  user_id: string | undefined,
-  contact_id: string
+  user_id: string | undefined
 ): Promise<string | undefined> => {
-  let conversation_id: string = createID("conv");
+  let conversation_id: string | undefined = undefined;
   const conversation = await db
     .selectFrom("conversations")
     .selectAll()
@@ -363,24 +399,6 @@ const checkGetConversation = async (
         .where("id", "=", conversation_id)
         .executeTakeFirst();
     }
-  } else if (!user_id) {
-    // we need to create a new conversation
-    const newConversation: NewConversation = {
-      id: conversation_id,
-      organisation_id,
-      contact_id,
-      created_at: Date.now(),
-      last_message_at: Date.now(),
-      interrupted: false,
-      status: ConversationStatusType.OPEN,
-      sentiment: 0,
-      channel: ConversationChannelType.SLACK,
-      channel_id: thread_ts,
-    };
-    await db.insertInto("conversations").values(newConversation).execute();
-  } else {
-    // We nullify the id if the message is from an admin
-    conversation_id = undefined;
   }
   return conversation_id;
 };

@@ -16,7 +16,7 @@ export const handleMessageForOpenAI = async (
   assistant_id: string,
   contact_id: string,
   context: InvocationContext
-) => {
+): Promise<MessageResponse[]> => {
   const openai = new OpenAI({
     apiKey: process.env.OPEN_API_KEY,
   });
@@ -49,7 +49,7 @@ export const handleSingleMessageForOpenAI = async (
   assistant_id: string,
   message: string,
   context: InvocationContext
-) => {
+): Promise<{ thread_id: string; response: MessageResponse[] }> => {
   const openai = new OpenAI({
     apiKey: process.env.OPEN_API_KEY,
   });
@@ -69,14 +69,17 @@ export const handleSingleMessageForOpenAI = async (
     { pollIntervalMs: 300 }
   );
 
-  return await handleThreadRun(
-    run.thread_id,
-    run,
-    openai,
-    context,
-    "",
-    undefined
-  );
+  return {
+    thread_id: run.thread_id,
+    response: await handleThreadRun(
+      run.thread_id,
+      run,
+      openai,
+      context,
+      "",
+      undefined
+    ),
+  };
 };
 
 export const processOpenAIMessage = async (
