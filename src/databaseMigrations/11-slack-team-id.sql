@@ -1,0 +1,1 @@
+ALTER TABLE organisations ADD COLUMN slack_team_id VARCHAR(256);

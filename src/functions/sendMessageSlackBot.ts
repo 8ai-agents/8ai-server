@@ -11,41 +11,13 @@ import {
   SendEventGridEventInput,
 } from "@azure/eventgrid";
 import { SlackBotMessageEvent } from "./messageProcessor";
+import { db } from "../DatabaseController";
 
 export async function sendMessageSlackBot(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const organisation_id = "org_b4de41d6db9d11bfd600eca07e880a3a"; // TODO stop hardcoding
-    /*
-    const organisation_id = request.params.org_id as string;
-    if (!organisation_id) {
-      return {
-        status: 400,
-        jsonBody: {
-          error: "Must supply a valid organisation ID",
-        },
-      };
-    }
-
-    // Verify that org has an assistant
-    const { assistant_id } = await db
-      .selectFrom("organisations")
-      .select(["assistant_id"])
-      .where("id", "=", organisation_id)
-      .executeTakeFirst();
-    if (!assistant_id) {
-      return {
-        status: 500,
-        jsonBody: {
-          response_type: "in_channel",
-          text: "There is no assistant configured for this organisation. Please contact your administrator.",
-        },
-      };
-    }
-      */
-
     // Process Message
     const messageRequest = (await request.json()) as
       | EnvelopedEvent<GenericMessageEvent>
@@ -60,19 +32,44 @@ export async function sendMessageSlackBot(
       };
     } else if (
       messageRequest.type === "event_callback" &&
+      messageRequest.team_id &&
       !messageRequest.event.bot_id &&
       messageRequest.event.user &&
       messageRequest.event.text &&
       messageRequest.event.text
     ) {
+      // Verify that org has an assistant
+      const { id, assistant_id } = await db
+        .selectFrom("organisations")
+        .select(["id", "assistant_id"])
+        .where("slack_team_id", "=", messageRequest.team_id)
+        .executeTakeFirst();
+      if (!id) {
+        return {
+          status: 404,
+          jsonBody: {
+            response_type: "in_channel",
+            text: "There is no organisation configured for this Slack Team. Please contact your administrator.",
+          },
+        };
+      }
+      if (!assistant_id) {
+        return {
+          status: 500,
+          jsonBody: {
+            response_type: "in_channel",
+            text: "There is no assistant configured for this organisation. Please contact your administrator.",
+          },
+        };
+      }
       // Message is a Slack Message and is not sent by a bot
       const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
         {
           eventType: "Message.SlackBot",
-          subject: `message/slackbot/${organisation_id}`,
+          subject: `message/slackbot/${id}`,
           dataVersion: "1.0",
           data: {
-            organisation_id,
+            organisation_id: id,
             message: messageRequest.event.text,
             user_id: messageRequest.event.user,
             channel_id: messageRequest.event.channel,

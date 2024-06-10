@@ -106,6 +106,7 @@ export interface OrganisationTable {
   chat_bubble_color: string;
   chat_text_color: string;
   fine_tuning_filename: string;
+  slack_team_id: string | undefined;
 }
 
 export type Organisation = Selectable<OrganisationTable>;
