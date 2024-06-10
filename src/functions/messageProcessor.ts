@@ -171,21 +171,23 @@ const processSlackBotMessage = async (
         created_at: Date.now(),
       };
 
-      for (const [index, mr] of messageResponse.entries()) {
-        mr.conversation_id;
-        mr.created_at = inboundMessage.created_at + index + 1;
-      }
-
       await db.insertInto("messages").values(inboundMessage).execute();
-      if (MessageResponse) {
+      if (messageResponse) {
+        for (const [index, mr] of messageResponse.entries()) {
+          mr.conversation_id = conversation_id;
+          mr.created_at = inboundMessage.created_at + index + 1;
+        }
         await saveMessageResponsesToDatabase(messageResponse, false);
       }
     }
   } catch (error) {
     context.error("Error processing Slack message: ", error);
-    await postSlashResponseToSlack(
-      event.data.response_url.toString(),
-      "An error occured wth this message, please contact your adminstrator.",
+    await postBotResponseToSlack(
+      {
+        channel: event.data.channel_id.toString(),
+        text: "An error occured wth this message, please contact your adminstrator.",
+        thread_ts: event.data.thread_ts.toString(),
+      },
       context
     );
   }
