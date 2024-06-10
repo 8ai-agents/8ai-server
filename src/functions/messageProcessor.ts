@@ -126,6 +126,8 @@ const processSlackBotMessage = async (
           id: contact_id,
           organisation_id: data.organisation_id,
           name: slackUser.user.real_name,
+          email: slackUser.user.profile.email,
+          phone: slackUser.user.profile.phone,
           slack_id: data.user_id,
         };
         await db.insertInto("contacts").values(newContact).execute();
