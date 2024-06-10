@@ -1,6 +1,9 @@
 import { app, EventGridEvent, InvocationContext } from "@azure/functions";
 import { MessageResponse } from "../models/MessageResponse";
-import { handleSingleMessageForOpenAI } from "../OpenAIHandler";
+import {
+  handleMessageForOpenAI,
+  handleSingleMessageForOpenAI as handleNewMessageForOpenAI,
+} from "../OpenAIHandler";
 import { db, saveMessageResponsesToDatabase } from "../DatabaseController";
 import {
   ConversationChannelType,
@@ -95,12 +98,32 @@ const processSlackBotMessage = async (
 
     if (!slackUser.is_admin) {
       // We only answer the message if the message sender is not an admin
-      const openAIResponseData = await handleSingleMessageForOpenAI(
-        assistant_id,
-        data.message.toString(),
-        context
-      );
-      messageResponse = openAIResponseData.response;
+      if (conversation_id) {
+        // We are continuing a conversation
+        const openAIResponseData = await handleMessageForOpenAI(
+          {
+            conversation_id,
+            message: data.message.toString(),
+            creator: MessageCreatorType.CONTACT,
+          },
+          assistant_id,
+          contact_id,
+          context
+        );
+        messageResponse = openAIResponseData;
+      } else {
+        // We are starting a new one
+        const openAIResponseData = await handleNewMessageForOpenAI(
+          assistant_id,
+          data.message.toString(),
+          context
+        );
+        messageResponse = openAIResponseData.response;
+        conversation_id = openAIResponseData.thread_id.replace(
+          "thread_",
+          "conv_"
+        );
+      }
       let response = messageResponse.map((r) => r.message).join("\n");
       const citationsWithURLs: string[] = messageResponse
         .flatMap((m) => m.citations && m.citations.map((c) => c.url))
@@ -121,11 +144,6 @@ const processSlackBotMessage = async (
           thread_ts: data.thread_ts,
         },
         context
-      );
-
-      conversation_id = openAIResponseData.thread_id.replace(
-        "thread_",
-        "conv_"
       );
 
       // Save new conversation with correct OpenAI thread ID
@@ -194,7 +212,7 @@ const processSlackSlashMessage = async (
       .where("id", "=", data.organisation_id)
       .executeTakeFirst();
 
-    const openAIResponseData = await handleSingleMessageForOpenAI(
+    const openAIResponseData = await handleNewMessageForOpenAI(
       assistant_id,
       data.message.toString(),
       context
