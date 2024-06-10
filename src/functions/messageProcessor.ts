@@ -62,6 +62,10 @@ const processSlackBotMessage = async (
 
     // Get user name from Slack API
     const slackUser = await getUserFromSlack(data.user_id, context);
+    context.log(slackUser);
+    if (slackUser.is_admin) {
+      context.log("Ignoring message from admin: ", slackUser.real_name);
+    }
     const contact_id = await checkGetContactID(
       slackUser.id,
       slackUser.real_name,
@@ -69,13 +73,14 @@ const processSlackBotMessage = async (
       slackUser.profile?.phone,
       data.organisation_id
     );
+    context.log(contact_id);
     const conversation_id = await checkGetConversation(
       data.thread_ts,
       data.organisation_id,
       slackUser.is_admin,
       contact_id
     );
-
+    context.log(conversation_id);
     let messageResponse: MessageResponse[] | undefined = undefined;
 
     if (!slackUser.is_admin) {
