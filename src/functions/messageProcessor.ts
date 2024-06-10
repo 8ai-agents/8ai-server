@@ -13,20 +13,6 @@ import {
 import { createID } from "../Utils";
 import { UsersInfoResponse } from "@slack/web-api";
 
-const adminNames = [
-  "Adam Jones",
-  "James",
-  "Florence",
-  "Luke Drago",
-  "Dewi",
-  "Li-Lian",
-  "Will Saunter",
-];
-
-// const isAdmin = (userName: string): boolean => {
-//   return adminNames.includes(userName);
-// };
-
 export type SlackSlashMessageEvent = {
   organisation_id: string;
   message: string;
@@ -78,16 +64,15 @@ const processSlackBotMessage = async (
     const slackUser = await getUserFromSlack(data.user_id, context);
     context.log(slackUser);
 
-    if (slackUser.is_admin) {
-      // TODO We save the message and mark the conversation as interrupted
-    } else {
-      // We answer the message
-      const messageResponse: MessageResponse[] =
-        await handleSingleMessageForOpenAI(
-          assistant_id,
-          data.message.toString(),
-          context
-        );
+    let messageResponse: MessageResponse[] | undefined;
+
+    if (!slackUser.is_admin) {
+      // We only answer the message if the message sender is not an admin
+      messageResponse = await handleSingleMessageForOpenAI(
+        assistant_id,
+        data.message.toString(),
+        context
+      );
 
       let response = messageResponse.map((r) => r.message).join("\n");
       const citationsWithURLs: string[] = messageResponse
@@ -110,61 +95,78 @@ const processSlackBotMessage = async (
         },
         context
       );
+    }
 
-      // First check if there is an existing contact and conversation
-      let contact_id: string = createID("cont");
-      const contact = await db
-        .selectFrom("contacts")
-        .select(["id"])
-        .where("slack_id", "=", data.user_id)
-        .executeTakeFirst();
+    // First check if there is an existing contact and conversation
+    let contact_id: string = createID("cont");
+    const contact = await db
+      .selectFrom("contacts")
+      .select(["id"])
+      .where("slack_id", "=", data.user_id)
+      .executeTakeFirst();
 
-      if (contact && contact.id) {
-        contact_id = contact.id;
-      } else {
-        // we need to create a new contact
-        const newContact: NewContact = {
-          id: contact_id,
-          organisation_id: data.organisation_id,
-          name: slackUser.real_name,
-          email: slackUser.profile.email,
-          phone: slackUser.profile.phone,
-          slack_id: data.user_id,
-        };
-        await db.insertInto("contacts").values(newContact).execute();
+    if (contact && contact.id) {
+      contact_id = contact.id;
+    } else {
+      // we need to create a new contact
+      const newContact: NewContact = {
+        id: contact_id,
+        organisation_id: data.organisation_id,
+        name: slackUser.real_name,
+        email: slackUser.profile.email,
+        phone: slackUser.profile.phone,
+        slack_id: data.user_id,
+      };
+      await db.insertInto("contacts").values(newContact).execute();
+    }
+
+    let conversation_id: string = createID("conv");
+    const conversation = await db
+      .selectFrom("conversations")
+      .select(["id"])
+      .where("channel_id", "=", data.thread_ts)
+      .executeTakeFirst();
+
+    let saveMessageToDB = true;
+
+    if (conversation && conversation.id) {
+      conversation_id = conversation.id;
+      if (slackUser.is_admin) {
+        // Set the interrupted flag to true
+        await db
+          .updateTable("conversations")
+          .set({ interrupted: true })
+          .where("id", "=", conversation_id)
+          .execute();
       }
+    } else if (!slackUser.is_admin) {
+      // we need to create a new conversation
+      // We don't do this if the message is from an admin
+      const newConversation: NewConversation = {
+        id: conversation_id,
+        organisation_id: data.organisation_id,
+        contact_id,
+        created_at: Date.now(),
+        last_message_at: Date.now(),
+        interrupted: false,
+        status: ConversationStatusType.OPEN,
+        sentiment: 0,
+        channel: ConversationChannelType.SLACK,
+        channel_id: data.thread_ts,
+      };
+      await db.insertInto("conversations").values(newConversation).execute();
+    } else {
+      saveMessageToDB = false;
+    }
 
-      let conversation_id: string = createID("conv");
-      const conversation = await db
-        .selectFrom("conversations")
-        .select(["id"])
-        .where("channel_id", "=", data.thread_ts)
-        .executeTakeFirst();
-
-      if (conversation && conversation.id) {
-        conversation_id = conversation.id;
-      } else {
-        // we need to create a new contact
-        const newConversation: NewConversation = {
-          id: conversation_id,
-          organisation_id: data.organisation_id,
-          contact_id,
-          created_at: Date.now(),
-          last_message_at: Date.now(),
-          interrupted: false,
-          status: ConversationStatusType.OPEN,
-          sentiment: 0,
-          channel: ConversationChannelType.SLACK,
-          channel_id: data.thread_ts,
-        };
-        await db.insertInto("conversations").values(newConversation).execute();
-      }
-
+    if (saveMessageToDB) {
       const inboundMessage: NewMessage = {
         id: createID("msg"),
         conversation_id,
         message: data.message,
-        creator: MessageCreatorType.CONTACT,
+        creator: slackUser.is_admin
+          ? MessageCreatorType.USER
+          : MessageCreatorType.CONTACT,
         version: 1,
         created_at: Date.now(),
       };
@@ -175,7 +177,9 @@ const processSlackBotMessage = async (
       }
 
       await db.insertInto("messages").values(inboundMessage).execute();
-      await saveMessageResponsesToDatabase(messageResponse, false);
+      if (MessageResponse) {
+        await saveMessageResponsesToDatabase(messageResponse, false);
+      }
     }
   } catch (error) {
     context.error("Error processing Slack message: ", error);
@@ -250,7 +254,7 @@ const processSlackSlashMessage = async (
       contact_id,
       created_at: Date.now(),
       last_message_at: Date.now(),
-      interrupted: adminNames.includes(contact.name) ? true : false,
+      interrupted: false,
       status: ConversationStatusType.OPEN,
       sentiment: 0,
       channel: ConversationChannelType.SLACK,
@@ -334,9 +338,6 @@ const getUserFromSlack = async (
   user_id: string,
   context: InvocationContext
 ) => {
-  // WebClient instantiates a client that can call API methods
-  // When using Bolt, you can use either `app.client` or the `client` passed to listeners.
-
   return await fetch("https://slack.com/api/users.info", {
     method: "POST",
     headers: {
