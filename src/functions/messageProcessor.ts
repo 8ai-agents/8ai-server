@@ -62,14 +62,23 @@ const processSlackBotMessage = async (
 
     // Get user name from Slack API
     const slackUser = await getUserFromSlack(data.user_id, context);
+    let user_id: string | undefined = undefined;
+
     if (slackUser.is_admin) {
       context.log("Ignoring message from admin: ", slackUser.real_name);
+
+      if (slackUser.profile?.email) {
+        // Try get user ID
+        const user = await db
+          .selectFrom("users")
+          .select(["id"])
+          .where("email", "=", slackUser.profile?.email.toLowerCase())
+          .executeTakeFirst();
+        if (user && user.id) {
+          user_id = user.id;
+        }
+      }
     }
-    // TODO remove
-    if (slackUser.id === "U074FT73Z0Q") {
-      slackUser.is_admin = false; // TODO remove this
-    }
-    context.log(slackUser);
 
     const contact_id = await checkGetContactID(
       slackUser.id,
@@ -78,14 +87,12 @@ const processSlackBotMessage = async (
       slackUser.profile?.phone,
       data.organisation_id
     );
-    context.log(contact_id);
     const conversation_id = await checkGetConversation(
       data.thread_ts,
       data.organisation_id,
-      slackUser.is_admin,
+      user_id,
       contact_id
     );
-    context.log(conversation_id);
     let messageResponse: MessageResponse[] | undefined = undefined;
 
     if (!slackUser.is_admin) {
@@ -130,6 +137,7 @@ const processSlackBotMessage = async (
           : MessageCreatorType.CONTACT,
         version: 1,
         created_at: Date.now(),
+        user_id,
       };
 
       await db.insertInto("messages").values(inboundMessage).execute();
@@ -200,7 +208,7 @@ const processSlackSlashMessage = async (
     const conversation_id = await checkGetConversation(
       data.response_url,
       data.organisation_id,
-      false,
+      undefined,
       contact_id
     );
 
@@ -335,7 +343,7 @@ const checkGetContactID = async (
 const checkGetConversation = async (
   thread_ts: string,
   organisation_id: string,
-  messageIsFromAdmin: boolean,
+  user_id: string | undefined,
   contact_id: string
 ): Promise<string | undefined> => {
   let conversation_id: string = createID("conv");
@@ -347,15 +355,15 @@ const checkGetConversation = async (
 
   if (conversation && conversation.id) {
     conversation_id = conversation.id;
-    if (messageIsFromAdmin) {
+    if (user_id) {
       // Set the interrupted flag to true
       await db
         .updateTable("conversations")
-        .set({ interrupted: true })
+        .set({ interrupted: true, assignee_id: user_id })
         .where("id", "=", conversation_id)
         .executeTakeFirst();
     }
-  } else if (!messageIsFromAdmin) {
+  } else if (!user_id) {
     // we need to create a new conversation
     const newConversation: NewConversation = {
       id: conversation_id,
