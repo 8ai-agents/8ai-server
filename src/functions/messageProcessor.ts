@@ -123,6 +123,20 @@ const processSlackBotMessage = async (
           "thread_",
           "conv_"
         );
+        // Save new conversation with correct OpenAI thread ID
+        const newConversation: NewConversation = {
+          id: conversation_id,
+          organisation_id: data.organisation_id,
+          contact_id,
+          created_at: Date.now(),
+          last_message_at: Date.now(),
+          interrupted: false,
+          status: ConversationStatusType.OPEN,
+          sentiment: 0,
+          channel: ConversationChannelType.SLACK,
+          channel_id: data.thread_ts,
+        };
+        await db.insertInto("conversations").values(newConversation).execute();
       }
       let response = messageResponse.map((r) => r.message).join("\n");
       const citationsWithURLs: string[] = messageResponse
@@ -145,21 +159,6 @@ const processSlackBotMessage = async (
         },
         context
       );
-
-      // Save new conversation with correct OpenAI thread ID
-      const newConversation: NewConversation = {
-        id: conversation_id,
-        organisation_id: data.organisation_id,
-        contact_id,
-        created_at: Date.now(),
-        last_message_at: Date.now(),
-        interrupted: false,
-        status: ConversationStatusType.OPEN,
-        sentiment: 0,
-        channel: ConversationChannelType.SLACK,
-        channel_id: data.thread_ts,
-      };
-      await db.insertInto("conversations").values(newConversation).execute();
     }
 
     if (conversation_id) {
