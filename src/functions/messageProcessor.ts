@@ -62,6 +62,10 @@ const processSlackBotMessage = async (
   try {
     const data = event.data as SlackBotMessageEvent;
 
+    // Check for specific keyword to set interrupt
+    const keyword = "Adam"; // Define your keyword here
+    const shouldInterrupt = data.message.toLowerCase().includes(keyword);
+
     const { assistant_id } = await db
       .selectFrom("organisations")
       .select(["assistant_id"])
@@ -101,6 +105,16 @@ const processSlackBotMessage = async (
       data.thread_ts,
       user_id
     );
+
+    if (shouldInterrupt && conversation_id) {
+      // Update the conversation to mark it as interrupted
+      await db
+        .updateTable("conversations")
+        .set({ interrupted: true })
+        .where("id", "=", conversation_id)
+        .execute();
+    }
+
     let messageResponse: MessageResponse[] | undefined = undefined;
 
     if (!slackUser.is_admin) {
