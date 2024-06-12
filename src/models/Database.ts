@@ -7,6 +7,7 @@ export interface Database {
   users: UserTable;
   organisations: OrganisationTable;
   organisation_files: OrganisationFileTable;
+  organisation_slack: OrganisationSlackTable;
 }
 
 export interface ContactTable {
@@ -106,7 +107,6 @@ export interface OrganisationTable {
   chat_bubble_color: string;
   chat_text_color: string;
   fine_tuning_filename: string;
-  slack_team_id: string | undefined;
 }
 
 export type Organisation = Selectable<OrganisationTable>;
@@ -123,3 +123,13 @@ export interface OrganisationFileTable {
 
 export type OrganisationFile = Selectable<OrganisationFileTable>;
 export type NewOrganisationFile = Insertable<OrganisationFileTable>;
+
+export interface OrganisationSlackTable {
+  id: string;
+  organisation_id: string;
+  workspace_id: string;
+  bot_token: string;
+  signing_secret: string;
+}
+
+export type OrganisationSlack = Selectable<OrganisationSlackTable>;

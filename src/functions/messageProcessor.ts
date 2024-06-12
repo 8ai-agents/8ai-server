@@ -54,6 +54,11 @@ const processSlackBotMessage = async (
   context: InvocationContext
 ) => {
   /// Process
+  const { bot_token } = await db
+    .selectFrom("organisation_slack")
+    .select(["bot_token"])
+    .where("organisation_id", "=", event.data.organisation_id.toString())
+    .executeTakeFirst();
   try {
     const data = event.data as SlackBotMessageEvent;
 
@@ -64,7 +69,7 @@ const processSlackBotMessage = async (
       .executeTakeFirst();
 
     // Get user name from Slack API
-    const slackUser = await getUserFromSlack(data.user_id, context);
+    const slackUser = await getUserFromSlack(data.user_id, bot_token, context);
     let user_id: string | undefined = undefined;
 
     if (slackUser.is_admin) {
@@ -159,6 +164,7 @@ const processSlackBotMessage = async (
           text: response,
           thread_ts: data.thread_ts,
         },
+        bot_token,
         context
       );
     }
@@ -194,6 +200,7 @@ const processSlackBotMessage = async (
         text: "An error occured wth this message, please contact your adminstrator.",
         thread_ts: event.data.thread_ts.toString(),
       },
+      bot_token,
       context
     );
   }
@@ -301,6 +308,7 @@ const postBotResponseToSlack = async (
     text: string;
     thread_ts: string;
   },
+  slack_bot_token: string,
   context: InvocationContext
 ) => {
   return await fetch("https://slack.com/api/chat.postMessage", {
@@ -308,7 +316,7 @@ const postBotResponseToSlack = async (
     body: JSON.stringify(data),
     headers: {
       "Content-type": "application/json",
-      Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
+      Authorization: `Bearer ${slack_bot_token}`,
     },
   })
     .then(() => context.log("Processed Slack Message"))
@@ -343,12 +351,13 @@ const postSlashResponseToSlack = async (
 
 const getUserFromSlack = async (
   user_id: string,
+  slack_bot_token: string,
   context: InvocationContext
 ) => {
   return await fetch("https://slack.com/api/users.info", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}`,
+      Authorization: `Bearer ${slack_bot_token}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: `user=${user_id}`,

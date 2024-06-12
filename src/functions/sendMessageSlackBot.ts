@@ -39,12 +39,12 @@ export async function sendMessageSlackBot(
       messageRequest.event.text
     ) {
       // Verify that org has an assistant
-      const { id, assistant_id } = await db
-        .selectFrom("organisations")
-        .select(["id", "assistant_id"])
-        .where("slack_team_id", "=", messageRequest.team_id)
+      const { organisation_id } = await db
+        .selectFrom("organisation_slack")
+        .select(["organisation_id"])
+        .where("workspace_id", "=", messageRequest.team_id)
         .executeTakeFirst();
-      if (!id) {
+      if (!organisation_id) {
         return {
           status: 404,
           jsonBody: {
@@ -53,6 +53,8 @@ export async function sendMessageSlackBot(
           },
         };
       }
+      // TODO revert
+      /*
       if (!assistant_id) {
         return {
           status: 500,
@@ -62,14 +64,15 @@ export async function sendMessageSlackBot(
           },
         };
       }
+        */
       // Message is a Slack Message and is not sent by a bot
       const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
         {
           eventType: "Message.SlackBot",
-          subject: `message/slackbot/${id}`,
+          subject: `message/slackbot/${organisation_id}`,
           dataVersion: "1.0",
           data: {
-            organisation_id: id,
+            organisation_id,
             message: messageRequest.event.text,
             user_id: messageRequest.event.user,
             channel_id: messageRequest.event.channel,
