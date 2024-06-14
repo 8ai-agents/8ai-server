@@ -6,6 +6,7 @@ import {
 } from "../OpenAIHandler";
 import { db, saveMessageResponsesToDatabase } from "../DatabaseController";
 import {
+  Conversation,
   ConversationChannelType,
   ConversationStatusType,
   MessageCreatorType,
@@ -101,11 +102,9 @@ const processSlackBotMessage = async (
       slackUser.profile?.phone,
       data.organisation_id
     );
-    let conversation_id = await checkGetConversationUsingSlackThreadID(
-      data.thread_ts,
-      user_id
-    );
 
+    let { id: conversation_id, interrupted: conversation_interrupted } =
+      await checkGetConversationUsingSlackThreadID(data.thread_ts, user_id);
     if (shouldInterrupt && conversation_id) {
       // Update the conversation to mark it as interrupted
       await db
@@ -113,11 +112,12 @@ const processSlackBotMessage = async (
         .set({ interrupted: true })
         .where("id", "=", conversation_id)
         .execute();
+      conversation_interrupted = true;
     }
 
     let messageResponse: MessageResponse[] | undefined = undefined;
 
-    if (!slackUser.is_admin) {
+    if (!slackUser.is_admin && !conversation_interrupted) {
       // We only answer the message if the message sender is not an admin
       if (conversation_id) {
         // We are continuing a conversation
@@ -181,6 +181,8 @@ const processSlackBotMessage = async (
         bot_token,
         context
       );
+    } else {
+      context.log("Conversation was interrupted, not responding");
     }
 
     if (conversation_id) {
@@ -264,7 +266,7 @@ const processSlackSlashMessage = async (
     );
 
     // Update conversation
-    let conversation_id = await checkGetConversationUsingSlackThreadID(
+    let { id: conversation_id } = await checkGetConversationUsingSlackThreadID(
       data.response_url,
       undefined
     );
@@ -423,8 +425,7 @@ const checkGetContactID = async (
 const checkGetConversationUsingSlackThreadID = async (
   thread_ts: string,
   user_id: string | undefined
-): Promise<string | undefined> => {
-  let conversation_id: string | undefined = undefined;
+): Promise<Conversation> => {
   const conversation = await db
     .selectFrom("conversations")
     .selectAll()
@@ -432,17 +433,18 @@ const checkGetConversationUsingSlackThreadID = async (
     .executeTakeFirst();
 
   if (conversation && conversation.id) {
-    conversation_id = conversation.id;
     if (user_id) {
       // Set the interrupted flag to true
+      conversation.interrupted = true;
+      conversation.assignee_id = user_id;
       await db
         .updateTable("conversations")
-        .set({ interrupted: true, assignee_id: user_id })
-        .where("id", "=", conversation_id)
+        .set(conversation)
+        .where("id", "=", conversation.id)
         .executeTakeFirst();
     }
   }
-  return conversation_id;
+  return conversation;
 };
 
 app.eventGrid("messageProcessor", {
