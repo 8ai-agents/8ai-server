@@ -54,7 +54,6 @@ const processSlackBotMessage = async (
   event: EventGridEvent,
   context: InvocationContext
 ) => {
-  /// Process
   const { bot_token } = await db
     .selectFrom("organisation_slack")
     .select(["bot_token"])
@@ -62,6 +61,26 @@ const processSlackBotMessage = async (
     .executeTakeFirst();
   try {
     const data = event.data as SlackBotMessageEvent;
+
+    // Fetch channel name using the channel ID
+    const channelInfo = await fetch(
+      `https://slack.com/api/conversations.info?channel=${data.channel_id}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${bot_token}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    ).then((res) => res.json());
+
+    const channelName = channelInfo.channel.name;
+
+    // Check if the channel name includes "alignment"
+    if (channelName.includes("alignment")) {
+      context.log("Channel includes 'alignment'. Modifying message.");
+      data.message += " [Modified because this is an alignment channel]";
+    }
 
     // Check for specific keyword to set interrupt
     const keyword = "Adam"; // Define your keyword here
