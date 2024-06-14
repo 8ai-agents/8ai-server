@@ -103,8 +103,17 @@ const processSlackBotMessage = async (
       data.organisation_id
     );
 
-    let { id: conversation_id, interrupted: conversation_interrupted } =
-      await checkGetConversationUsingSlackThreadID(data.thread_ts, user_id);
+    let conversation_id = "";
+    let conversation_interrupted = false;
+    const existingConversation = await checkGetConversationUsingSlackThreadID(
+      data.thread_ts,
+      user_id
+    );
+    if (existingConversation && existingConversation.id) {
+      conversation_id = existingConversation.id;
+      conversation_interrupted = existingConversation.interrupted;
+    }
+
     if (shouldInterrupt && conversation_id) {
       // Update the conversation to mark it as interrupted
       await db
@@ -266,10 +275,14 @@ const processSlackSlashMessage = async (
     );
 
     // Update conversation
-    let { id: conversation_id } = await checkGetConversationUsingSlackThreadID(
+    let conversation_id = "";
+    const existingConversation = await checkGetConversationUsingSlackThreadID(
       data.response_url,
       undefined
     );
+    if (existingConversation && existingConversation.id) {
+      conversation_id = existingConversation.id;
+    }
 
     if (!conversation_id) {
       // Save new conversation with correct OpenAI thread ID
