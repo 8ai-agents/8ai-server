@@ -1,6 +1,6 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { db, getFullConversation } from "../DatabaseController";
-import { ConversationStatusType } from "../models/Database";
+import { ConversationStatusType, UserRoleType } from "../models/Database";
 import {
   sendDailySummary,
   sendDailySummaryToSuperAdmins,
@@ -15,20 +15,22 @@ export async function cronDailyMessageSummaries(
 
   const oneDayAgo: number = Date.now() - 1000 * 60 * 60 * 24; // More than 24 hours ago
 
-  const allUsers = await db
+  const allAdmins = await db
     .selectFrom("users")
     .select(["id", "name", "email", "organisation_id", "role"])
     .where("email", "!=", "")
     .execute();
 
-  const allUsersByOrgId = allUsers.reduce((acc, user) => {
-    const orgId = user.organisation_id;
-    if (!acc[orgId]) {
-      acc[orgId] = [];
-    }
-    acc[orgId].push(user);
-    return acc;
-  }, {});
+  const allUsersByOrgId = allAdmins
+    .filter((u) => u.role != UserRoleType.SUPER_ADMIN) // We don't send to super admins, they get a global update later
+    .reduce((acc, user) => {
+      const orgId = user.organisation_id;
+      if (!acc[orgId]) {
+        acc[orgId] = [];
+      }
+      acc[orgId].push(user);
+      return acc;
+    }, {});
 
   for (const orgId in allUsersByOrgId) {
     try {
@@ -68,7 +70,7 @@ export async function cronDailyMessageSummaries(
 
   // Now sending a summary to all super admins
   try {
-    const superAdmins = allUsers.filter((u) => u.role === "SUPER_ADMIN");
+    const superAdmins = allAdmins.filter((u) => u.role === "SUPER_ADMIN");
     const allMessagesData = await db
       .selectFrom("conversations")
       .innerJoin("contacts", "conversations.contact_id", "contacts.id")
