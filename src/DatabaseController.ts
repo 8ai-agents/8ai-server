@@ -24,7 +24,7 @@ export const db = new Kysely<Database>({
   dialect: new PostgresDialect({
     pool: new pg.Pool({
       database: process.env.PG_DATABASE,
-      host: "8ai-prod.postgres.database.azure.com",
+      host: process.env.PG_HOST,
       user: "server",
       port: 5432,
       max: 5,
