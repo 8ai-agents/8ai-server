@@ -84,7 +84,7 @@ const processSlackBotMessage = async (
     }
 
     // TODO use userID instead of string
-    let shouldInterrupt = data.message.toLowerCase().includes("Adam");
+    let conversation_interrupted = data.message.toLowerCase().includes("Adam");
 
     const { assistant_id } = await db
       .selectFrom("organisations")
@@ -106,7 +106,7 @@ const processSlackBotMessage = async (
       );
 
       // Interrupt the conversation
-      shouldInterrupt = true;
+      conversation_interrupted = true;
 
       if (slackUser.profile?.email) {
         // Try get user ID
@@ -130,7 +130,6 @@ const processSlackBotMessage = async (
     );
 
     let conversation_id = "";
-    let conversation_interrupted = false;
     const existingConversation = await checkGetConversationUsingSlackThreadID(
       data.thread_ts,
       user_id
@@ -140,14 +139,13 @@ const processSlackBotMessage = async (
       conversation_interrupted = existingConversation.interrupted;
     }
 
-    if (shouldInterrupt && conversation_id) {
+    if (conversation_interrupted && conversation_id) {
       // Update the conversation to mark it as interrupted
       await db
         .updateTable("conversations")
         .set({ interrupted: true })
         .where("id", "=", conversation_id)
         .execute();
-      conversation_interrupted = true;
     }
 
     let messageResponse: MessageResponse[] | undefined = undefined;
