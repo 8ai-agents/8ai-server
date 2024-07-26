@@ -152,7 +152,7 @@ const processSlackBotMessage = async (
 
     let messageResponse: MessageResponse[] | undefined = undefined;
 
-    if (!slackUser.is_admin && !conversation_interrupted) {
+    if (!conversation_interrupted) {
       // We only answer the message if the message sender is not an admin
       if (conversation_id) {
         // We are continuing a conversation
