@@ -54,9 +54,9 @@ const processSlackBotMessage = async (
   event: EventGridEvent,
   context: InvocationContext
 ) => {
-  const { bot_token } = await db
+  const { bot_token, internal_user_list } = await db
     .selectFrom("organisation_slack")
-    .select(["bot_token"])
+    .select(["bot_token", "internal_user_list"])
     .where("organisation_id", "=", event.data.organisation_id.toString())
     .executeTakeFirst();
   try {
@@ -76,15 +76,15 @@ const processSlackBotMessage = async (
 
     const channelName = channelInfo.channel.name;
 
+    // TODO user ID rather than name
     // Check if the channel name includes "alignment"
     if (channelName.includes("alignment")) {
       context.log("Channel includes 'alignment'. Modifying message.");
       data.message += " [Modified because this is an alignment channel]";
     }
 
-    // Check for specific keyword to set interrupt
-    const keyword = "Adam"; // Define your keyword here
-    const shouldInterrupt = data.message.toLowerCase().includes(keyword);
+    // TODO use userID instead of string
+    let shouldInterrupt = data.message.toLowerCase().includes("Adam");
 
     const { assistant_id } = await db
       .selectFrom("organisations")
@@ -96,10 +96,17 @@ const processSlackBotMessage = async (
     const slackUser = await getUserFromSlack(data.user_id, bot_token, context);
     let user_id: string | undefined = undefined;
 
-    if (slackUser.is_admin) {
+    // Check if internal user ID, and mark interrupted if so
+    if (
+      internal_user_list &&
+      internal_user_list.split(",").includes(data.user_id)
+    ) {
       context.log(
-        `Ignoring message from admin: ${slackUser.real_name} ${slackUser.profile?.email}`
+        `Ignoring message from internal user: ${data.user_id} ${slackUser.real_name} ${slackUser.profile?.email}`
       );
+
+      // Interrupt the conversation
+      shouldInterrupt = true;
 
       if (slackUser.profile?.email) {
         // Try get user ID

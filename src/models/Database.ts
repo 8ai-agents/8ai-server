@@ -130,6 +130,7 @@ export interface OrganisationSlackTable {
   workspace_id: string;
   bot_token: string;
   signing_secret: string;
+  internal_user_list: string; // this is a comma seperated array of user IDS
 }
 
 export type OrganisationSlack = Selectable<OrganisationSlackTable>;

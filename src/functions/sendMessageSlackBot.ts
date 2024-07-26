@@ -44,6 +44,8 @@ export async function sendMessageSlackBot(
         .select(["organisation_id"])
         .where("workspace_id", "=", messageRequest.team_id)
         .executeTakeFirst();
+
+      // Look for organisation ID
       if (!organisation_id) {
         return {
           status: 404,
@@ -53,18 +55,7 @@ export async function sendMessageSlackBot(
           },
         };
       }
-      // TODO revert
-      /*
-      if (!assistant_id) {
-        return {
-          status: 500,
-          jsonBody: {
-            response_type: "in_channel",
-            text: "There is no assistant configured for this organisation. Please contact your administrator.",
-          },
-        };
-      }
-        */
+
       // Message is a Slack Message and is not sent by a bot
       const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
         {
@@ -81,7 +72,6 @@ export async function sendMessageSlackBot(
           },
         },
       ];
-      context.log(JSON.stringify(eventPayload));
 
       // Publish message to EventGrid
       const topicEndpoint =
