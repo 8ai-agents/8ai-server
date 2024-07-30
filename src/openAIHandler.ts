@@ -174,7 +174,11 @@ export const createAssistant = async (
     });
 
     if (filedata) {
-      await updateAssistantFile(organisation_id, myAssistant.id, filedata);
+      await updateAssistantEntireFile(
+        organisation_id,
+        myAssistant.id,
+        filedata
+      );
     }
     return myAssistant.id;
   } catch (e) {
@@ -183,7 +187,7 @@ export const createAssistant = async (
   }
 };
 
-export const updateAssistantFile = async (
+export const updateAssistantEntireFile = async (
   organisation_id: string,
   assistant_id: string,
   filedata: string
@@ -281,6 +285,92 @@ export const updateAssistantFile = async (
       .insertInto("organisation_files")
       .values(newOrganisationFiles)
       .execute();
+  } catch (e) {
+    throw `Failed to update AI assistant ${e.message}`;
+  }
+};
+
+export const createAssistantFile = async (
+  newOrganisationFile: NewOrganisationFile
+): Promise<string> => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+
+  try {
+    const { assistant_id } = await db
+      .selectFrom("organisations")
+      .select(["assistant_id"])
+      .where("id", "=", newOrganisationFile.organisation_id)
+      .executeTakeFirst();
+
+    const assistant = await openai.beta.assistants.retrieve(assistant_id);
+    // add new file
+    const content: { text: string } = { text: newOrganisationFile.content };
+    const newOpenAIFile = await openai.files.create({
+      file: await toFile(
+        Buffer.from(JSON.stringify(content)),
+        `${assistant_id}-${newOrganisationFile.id}.json`
+      ),
+      purpose: "assistants",
+    });
+
+    if (
+      assistant.tool_resources?.file_search?.vector_store_ids?.length[0] > 0
+    ) {
+      for (const vectorStoreID of assistant.tool_resources.file_search
+        .vector_store_ids) {
+        await openai.beta.vectorStores.files.create(vectorStoreID, {
+          file_id: newOpenAIFile.id,
+        });
+      }
+    } else {
+      // create a new vector store
+      const newVectorStore = await openai.beta.vectorStores.create({
+        name: `vs_for_${assistant_id}`,
+        file_ids: [newOpenAIFile.id],
+      });
+      await openai.beta.assistants.update(assistant_id, {
+        tools: getToolModel(true),
+        tool_resources: {
+          file_search: {
+            vector_store_ids: [newVectorStore.id],
+          },
+        },
+      });
+    }
+
+    return newOpenAIFile.id;
+  } catch (e) {
+    throw `Failed to update AI assistant ${e.message}`;
+  }
+};
+
+export const updateAssistantFile = async (
+  newOrganisationFile: NewOrganisationFile
+): Promise<string> => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+
+  try {
+    // delete existing file
+    await openai.files.del(newOrganisationFile.openai_id);
+
+    return await createAssistantFile(newOrganisationFile);
+  } catch (e) {
+    throw `Failed to update AI assistant ${e.message}`;
+  }
+};
+
+export const deleteAssistantFile = async (file_id: string) => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+
+  try {
+    // delete file
+    await openai.files.del(file_id);
   } catch (e) {
     throw `Failed to update AI assistant ${e.message}`;
   }

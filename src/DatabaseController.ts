@@ -9,6 +9,7 @@ import {
 import { ConversationResponse } from "./models/ConversationResponse";
 import { MessageResponse } from "./models/MessageResponse";
 import { OrganisationResponse } from "./models/OrganisationResponse";
+import { OrganisationFileResponse } from "./models/OrganisationFileResponse";
 
 const int8TypeId = 20;
 // Map int8 to number.
@@ -124,6 +125,21 @@ export const getOrganisation = async (
     .executeTakeFirstOrThrow();
 
   const result: OrganisationResponse = {
+    ...data,
+  };
+  return result;
+};
+
+export const getOrganisationFileResponse = async (
+  file_id: string
+): Promise<OrganisationFileResponse> => {
+  const data = await db
+    .selectFrom("organisation_files")
+    .where("id", "=", file_id)
+    .selectAll()
+    .executeTakeFirstOrThrow();
+
+  const result: OrganisationFileResponse = {
     ...data,
   };
   return result;

@@ -113,16 +113,28 @@ export type Organisation = Selectable<OrganisationTable>;
 export type NewOrganisation = Insertable<OrganisationTable>;
 export type OrganisationUpdate = Updateable<OrganisationTable>;
 
+export enum RefreshFrequency {
+  DAILY = "DAILY",
+  WEEKLY = "WEEKLY",
+  FORTNIGHTLY = "FORTNIGHTLY",
+  MONTHLY = "MONTHLY",
+  NEVER = "NEVER",
+}
+
 export interface OrganisationFileTable {
   id: string;
+  openai_id: string;
   organisation_id: string;
   name: string;
   url: string;
   content: string;
+  refresh_frequency: RefreshFrequency;
+  last_refreshed: number | undefined;
 }
 
 export type OrganisationFile = Selectable<OrganisationFileTable>;
 export type NewOrganisationFile = Insertable<OrganisationFileTable>;
+export type OrganisationFileUpdate = Updateable<OrganisationFileTable>;
 
 export interface OrganisationSlackTable {
   id: string;
