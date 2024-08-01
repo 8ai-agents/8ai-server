@@ -83,8 +83,25 @@ const processSlackBotMessage = async (
       data.message += " [Modified because this is an alignment channel]";
     }
 
+    // Define specific user IDs to check
+    const specificUserIds = [
+      "<@U05EM5U9HPA>",
+      "<@U04BW3695DL>",
+      "<@U01JDNV7NK1>",
+      "<@U06LDET2GSH>",
+      "<@U04KZRGRFNU>",
+    ];
+    
+    // Check if the message includes any of the specific user IDs
+    let conversation_interrupted = specificUserIds.some((id) =>
+      data.message.includes(id)
+    );
+
     // TODO use userID instead of string
-    let conversation_interrupted = data.message.toLowerCase().includes("Adam");
+
+    // let conversation_interrupted = data.message
+    //   .toLowerCase()
+    //   .includes("Adam", "Dewi", "Luke", "Li-lian");
 
     const { assistant_id } = await db
       .selectFrom("organisations")
