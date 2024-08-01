@@ -76,7 +76,6 @@ const processSlackBotMessage = async (
 
     const channelName = channelInfo.channel.name;
 
-    // TODO user ID rather than name
     // Check if the channel name includes "alignment"
     if (channelName.includes("alignment")) {
       context.log("Channel includes 'alignment'. Modifying message.");
@@ -91,17 +90,11 @@ const processSlackBotMessage = async (
       "<@U06LDET2GSH>",
       "<@U04KZRGRFNU>",
     ];
-    
+
     // Check if the message includes any of the specific user IDs
     let conversation_interrupted = specificUserIds.some((id) =>
       data.message.includes(id)
     );
-
-    // TODO use userID instead of string
-
-    // let conversation_interrupted = data.message
-    //   .toLowerCase()
-    //   .includes("Adam", "Dewi", "Luke", "Li-lian");
 
     const { assistant_id } = await db
       .selectFrom("organisations")
@@ -153,7 +146,13 @@ const processSlackBotMessage = async (
     );
     if (existingConversation && existingConversation.id) {
       conversation_id = existingConversation.id;
-      conversation_interrupted = existingConversation.interrupted;
+      conversation_interrupted =
+        conversation_interrupted || existingConversation.interrupted;
+      // If the conversation already exists, do not respond
+      context.log(
+        "Conversation already exists, not responding to subsequent messages."
+      );
+      return;
     }
 
     if (conversation_interrupted && conversation_id) {
