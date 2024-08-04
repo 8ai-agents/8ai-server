@@ -5,7 +5,7 @@ import { UserRoleType } from "./models/Database";
 export const checkUserIsAdmin = async (
   org_id: string,
   email: string,
-  superAdminOnly: boolean = false,
+  superAdminOnly: boolean = false
 ) => {
   const { organisation_id, role } = await db
     .selectFrom("users")
@@ -23,5 +23,6 @@ export const checkUserIsAdmin = async (
   }
 };
 
-export const createID = (type: "cont" | "conv" | "msg" | "org" | "user") =>
-  `${type}_${randomBytes(16).toString("hex")}`;
+export const createID = (
+  type: "cont" | "conv" | "msg" | "org" | "user" | "file"
+) => `${type}_${randomBytes(16).toString("hex")}`;

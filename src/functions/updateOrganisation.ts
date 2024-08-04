@@ -8,7 +8,7 @@ import { authenticateRequest } from "../AuthController";
 import { OrganisationUpdate, UserRoleType } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { db, getOrganisation, getUser } from "../DatabaseController";
-import { updateAssistantFile } from "../OpenAIHandler";
+import { updateAssistantEntireFile } from "../OpenAIHandler";
 
 export async function updateOrganisation(
   request: HttpRequest,
@@ -53,7 +53,7 @@ export async function updateOrganisation(
       // Fine tuning data has been updated, update OpenAI
       orgToUpdate.fine_tuning_filename =
         organisationRequest.fine_tuning_filename;
-      await updateAssistantFile(
+      await updateAssistantEntireFile(
         organisationRequest.id,
         organisationRequest.assistant_id,
         organisationRequest.fine_tuning_data
