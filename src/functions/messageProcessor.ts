@@ -59,6 +59,7 @@ const processSlackBotMessage = async (
     .select(["bot_token", "internal_user_list"])
     .where("organisation_id", "=", event.data.organisation_id.toString())
     .executeTakeFirst();
+
   try {
     const data = event.data as SlackBotMessageEvent;
 
@@ -77,24 +78,11 @@ const processSlackBotMessage = async (
     const channelName = channelInfo.channel.name;
 
     // Check if the channel name includes "alignment"
+    // TODO use channel ID rather than name
     if (channelName.includes("alignment")) {
       context.log("Channel includes 'alignment'. Modifying message.");
       data.message += " [Modified because this is an alignment channel]";
     }
-
-    // Define specific user IDs to check
-    const specificUserIds = [
-      "<@U05EM5U9HPA>",
-      "<@U04BW3695DL>",
-      "<@U01JDNV7NK1>",
-      "<@U06LDET2GSH>",
-      "<@U04KZRGRFNU>",
-    ];
-
-    // Check if the message includes any of the specific user IDs
-    let conversation_interrupted = specificUserIds.some((id) =>
-      data.message.includes(id)
-    );
 
     const { assistant_id } = await db
       .selectFrom("organisations")
@@ -106,17 +94,21 @@ const processSlackBotMessage = async (
     const slackUser = await getUserFromSlack(data.user_id, bot_token, context);
     let user_id: string | undefined = undefined;
 
-    // Check if internal user ID, and mark interrupted if so
+    // Check if sent by an internal user ID, or has an internal user ID tagged, and mark interrupted if so
+    let shouldInterruptConversation = false;
     if (
       internal_user_list &&
-      internal_user_list.split(",").includes(data.user_id)
+      (internal_user_list.split(",").includes(data.user_id) ||
+        internal_user_list
+          .split(",")
+          .some((id) => data.message.includes(`<@${id}>`)))
     ) {
       context.log(
         `Ignoring message from internal user: ${data.user_id} ${slackUser.real_name} ${slackUser.profile?.email}`
       );
 
       // Interrupt the conversation
-      conversation_interrupted = true;
+      shouldInterruptConversation = true;
 
       if (slackUser.profile?.email) {
         // Try get user ID
@@ -139,40 +131,39 @@ const processSlackBotMessage = async (
       data.organisation_id
     );
 
-    let conversation_id = "";
+    let existingConversationID = "";
     const existingConversation = await checkGetConversationUsingSlackThreadID(
       data.thread_ts,
       user_id
     );
-    if (existingConversation && existingConversation.id) {
-      conversation_id = existingConversation.id;
-      conversation_interrupted =
-        conversation_interrupted || existingConversation.interrupted;
-      // If the conversation already exists, do not respond
-      context.log(
-        "Conversation already exists, not responding to subsequent messages."
-      );
-      return;
-    }
 
-    if (conversation_interrupted && conversation_id) {
-      // Update the conversation to mark it as interrupted
-      await db
-        .updateTable("conversations")
-        .set({ interrupted: true })
-        .where("id", "=", conversation_id)
-        .execute();
+    if (existingConversation && existingConversation.id) {
+      existingConversationID = existingConversation.id;
+      // TODO temp fix here, we should instead allow normal users to have a conversation
+      shouldInterruptConversation = true;
+      // shouldInterruptConversation = shouldInterruptConversation || existingConversation.interrupted;
+
+      if (shouldInterruptConversation) {
+        // Update the conversation to mark it as interrupted
+        await db
+          .updateTable("conversations")
+          .set({ interrupted: true })
+          .where("id", "=", existingConversationID)
+          .execute();
+      }
     }
 
     let messageResponse: MessageResponse[] | undefined = undefined;
 
-    if (!conversation_interrupted) {
+    if (shouldInterruptConversation) {
+      context.log("Conversation was interrupted, not responding");
+    } else {
       // We only answer the message if the message sender is not an admin
-      if (conversation_id) {
+      if (existingConversationID) {
         // We are continuing a conversation
         const openAIResponseData = await handleMessageForOpenAI(
           {
-            conversation_id,
+            conversation_id: existingConversationID,
             message: data.message.toString(),
             creator: MessageCreatorType.CONTACT,
           },
@@ -189,13 +180,13 @@ const processSlackBotMessage = async (
           context
         );
         messageResponse = openAIResponseData.response;
-        conversation_id = openAIResponseData.thread_id.replace(
+        existingConversationID = openAIResponseData.thread_id.replace(
           "thread_",
           "conv_"
         );
         // Save new conversation with correct OpenAI thread ID
         const newConversation: NewConversation = {
-          id: conversation_id,
+          id: existingConversationID,
           organisation_id: data.organisation_id,
           contact_id,
           created_at: Date.now(),
@@ -230,15 +221,13 @@ const processSlackBotMessage = async (
         bot_token,
         context
       );
-    } else {
-      context.log("Conversation was interrupted, not responding");
     }
 
-    if (conversation_id) {
+    if (existingConversationID) {
       // We only save the inbound message if the conversation exists
       const inboundMessage: NewMessage = {
         id: createID("msg"),
-        conversation_id,
+        conversation_id: existingConversationID,
         message: data.message,
         creator: slackUser.is_admin
           ? MessageCreatorType.USER
@@ -251,7 +240,7 @@ const processSlackBotMessage = async (
       await db.insertInto("messages").values(inboundMessage).execute();
       if (messageResponse) {
         for (const [index, mr] of messageResponse.entries()) {
-          mr.conversation_id = conversation_id;
+          mr.conversation_id = existingConversationID;
           mr.created_at = inboundMessage.created_at + index + 1;
         }
         await saveMessageResponsesToDatabase(messageResponse, false);
