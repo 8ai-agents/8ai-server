@@ -39,6 +39,7 @@ export async function createOrganisation(
       chat_bubble_color: organisationRequest.chat_bubble_color,
       chat_text_color: organisationRequest.chat_text_color,
       fine_tuning_filename: organisationRequest.fine_tuning_filename,
+      default_questions: [],
     };
     await db
       .insertInto("organisations")

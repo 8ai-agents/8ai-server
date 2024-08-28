@@ -36,6 +36,7 @@ export async function getOrganisations(
       "chat_bubble_color",
       "chat_text_color",
       "fine_tuning_filename",
+      "default_questions",
     ])
     .execute();
 
