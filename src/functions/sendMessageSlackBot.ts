@@ -56,6 +56,12 @@ export async function sendMessageSlackBot(
         };
       }
 
+      context.log(
+        `Processing message from SlackBot: ${JSON.stringify(
+          messageRequest.event
+        )}`
+      );
+
       // Message is a Slack Message and is not sent by a bot
       const eventPayload: SendEventGridEventInput<SlackBotMessageEvent>[] = [
         {
