@@ -101,6 +101,10 @@ export async function sendMessageSlackBot(
           status: 500,
         };
       }
+    } else {
+      context.log(
+        `Skipped message from SlackBot: ${JSON.stringify(messageRequest.event)}`
+      );
     }
   } catch (e) {
     context.error(e);
