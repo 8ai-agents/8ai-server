@@ -36,7 +36,8 @@ export async function sendMessageSlackBot(
       !messageRequest.event.bot_id &&
       messageRequest.event.user &&
       messageRequest.event.text &&
-      messageRequest.event.text
+      messageRequest.event.text &&
+      !messageRequest.event.subtype // It's not a system message
     ) {
       // Verify that org has an assistant
       const { organisation_id } = await db
