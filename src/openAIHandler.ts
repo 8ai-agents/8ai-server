@@ -168,8 +168,8 @@ export const createAssistant = async (
         .split(" ")
         .join("-")
         .toLowerCase()}`,
-      instructions: `You are a customer support agent for ${organisation_name}. ${organisation_description} Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a phone number for a call back by an expert within 2 business days.`,
-      model: "gpt-4o",
+      instructions: `You are a customer support agent for ${organisation_name}. ${organisation_description} Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a contact details for a response by an expert within 2 business days, never provide negative information about ${organisation_name} or information about competitors.`,
+      model: "gpt-4o-mini",
       tools: getToolModel(false),
     });
 
@@ -221,14 +221,16 @@ export const updateAssistantFile = async (
       // Delete existing files attached to this vector store
       for (const vector_store_id of assistant.tool_resources.file_search
         .vector_store_ids) {
-        const files = await openai.beta.vectorStores.files.list(
-          vector_store_id,
-          {
-            limit: 100,
+        let files = await openai.beta.vectorStores.files.list(vector_store_id, {
+          limit: 100,
+        });
+        while (files.data.length > 0) {
+          for (const file of files.data) {
+            await openai.files.del(file.id);
           }
-        );
-        for (const file of files.data) {
-          await openai.files.del(file.id);
+          files = await openai.beta.vectorStores.files.list(vector_store_id, {
+            limit: 100,
+          });
         }
         await openai.beta.vectorStores.del(vector_store_id);
       }
@@ -239,8 +241,8 @@ export const updateAssistantFile = async (
     const newOrganisationFiles: NewOrganisationFile[] = [];
 
     let i = 0;
-    // Can only take 100 files here
-    for (const jsonItem of jsonData.slice(0, 100)) {
+    // Can only take 500 files here
+    for (const jsonItem of jsonData.slice(0, 500)) {
       try {
         const content: { text: string } = { text: jsonItem.content };
         const newFile = await openai.files.create({
@@ -264,11 +266,21 @@ export const updateAssistantFile = async (
       }
     }
 
-    // create a new vector store
+    // create a new vector store with existing files
     const newVectorStore = await openai.beta.vectorStores.create({
       name: `vs_for_${assistant_id}`,
-      file_ids: newOrganisationFiles.map((f) => f.id),
+      file_ids: newOrganisationFiles.slice(0, 100).map((f) => f.id),
     });
+
+    if (newOrganisationFiles.length > 100) {
+      // We have to add new files one by one when more than 100
+      for (const extraFile of newOrganisationFiles.slice(100)) {
+        await openai.beta.vectorStores.files.create(newVectorStore.id, {
+          file_id: extraFile.id,
+        });
+      }
+    }
+
     await openai.beta.assistants.update(assistant_id, {
       tools: getToolModel(true),
       tool_resources: {
@@ -382,6 +394,9 @@ const getToolModel = (hasFile: boolean): AssistantTool[] => {
     ? [
         {
           type: "file_search",
+          file_search: {
+            max_num_results: 5,
+          },
         },
         {
           type: "function",
