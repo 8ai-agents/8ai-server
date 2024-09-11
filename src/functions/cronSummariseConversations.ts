@@ -113,11 +113,7 @@ export async function cronSummariseConversations(
           `Sending Negative Sentiment Warning for Conversation ${id}`
         );
         const fullConversation = await getFullConversation(id);
-        await sendNegativeSentimentWarning(
-          organisation_id,
-          fullConversation,
-          context
-        );
+        await sendNegativeSentimentWarning(fullConversation, context);
       }
     } catch (error: unknown) {
       context.error(

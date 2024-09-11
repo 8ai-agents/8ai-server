@@ -1,6 +1,10 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { db, getFullConversation } from "../DatabaseController";
-import { ConversationStatusType, UserRoleType } from "../models/Database";
+import {
+  ConversationStatusType,
+  NotificationSettingsType,
+  UserRoleType,
+} from "../models/Database";
 import {
   sendDailySummary,
   sendDailySummaryToSuperAdmins,
@@ -17,8 +21,25 @@ export async function cronDailyMessageSummaries(
 
   const allAdmins = await db
     .selectFrom("users")
-    .select(["id", "name", "email", "organisation_id", "role"])
-    .where("email", "!=", "")
+    .leftJoin(
+      "notification_settings",
+      "users.id",
+      "notification_settings.user_id"
+    )
+    .select([
+      "users.id",
+      "users.name",
+      "users.email",
+      "users.organisation_id",
+      "users.role",
+    ])
+    .where("users.email", "!=", "")
+    .where(
+      "notification_settings.type",
+      "=",
+      NotificationSettingsType.DAILY_SUMMARY
+    )
+    .where("notification_settings.enabled", "=", true)
     .execute();
 
   const allUsersByOrgId = allAdmins

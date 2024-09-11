@@ -44,6 +44,33 @@ export async function createUser(
     };
     await db.insertInto("users").values(userToSave).executeTakeFirst();
 
+    // Initialise default notification settings for user
+    await db
+      .insertInto("notification_settings")
+      .values([
+        {
+          user_id: userToSave.id,
+          type: "DAILY_SUMMARY",
+          enabled: true,
+        },
+        {
+          user_id: userToSave.id,
+          type: "NEGATIVE_SENTIMENT",
+          enabled: true,
+        },
+        {
+          user_id: userToSave.id,
+          type: "CONTACT_DETAILS_LEFT",
+          enabled: true,
+        },
+        {
+          user_id: userToSave.id,
+          type: "NEW_CONVERSATION",
+          enabled: false,
+        },
+      ])
+      .executeTakeFirst();
+
     const jsonBody: UserResponse = await db
       .selectFrom("users")
       .leftJoin("organisations", "organisations.id", "users.organisation_id")

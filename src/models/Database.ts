@@ -5,6 +5,7 @@ export interface Database {
   conversations: ConversationTable;
   messages: MessageTable;
   users: UserTable;
+  notification_settings: NotificationSettingsTable;
   organisations: OrganisationTable;
   organisation_files: OrganisationFileTable;
   organisation_slack: OrganisationSlackTable;
@@ -135,3 +136,20 @@ export interface OrganisationSlackTable {
 }
 
 export type OrganisationSlack = Selectable<OrganisationSlackTable>;
+
+export interface NotificationSettingsTable {
+  user_id: string;
+  type: NotificationSettingsType;
+  enabled: boolean;
+}
+
+export enum NotificationSettingsType {
+  DAILY_SUMMARY = "DAILY_SUMMARY",
+  NEGATIVE_SENTIMENT = "NEGATIVE_SENTIMENT",
+  CONTACT_DETAILS_LEFT = "CONTACT_DETAILS_LEFT",
+  NEW_CONVERSATION = "NEW_CONVERSATION",
+}
+
+export type NotificationSettings = Selectable<NotificationSettingsTable>;
+export type NewNotificationSettings = Insertable<NotificationSettingsTable>;
+export type NotificationSettingsUpdate = Updateable<NotificationSettingsTable>;
