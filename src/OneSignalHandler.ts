@@ -210,6 +210,78 @@ export const sendNegativeSentimentWarning = async (
   }
 };
 
+export const sendContactDetailsAlert = async (
+  conversation: ConversationResponse,
+  context: InvocationContext
+) => {
+  // We fist check if any user is subscribed to contact details left warnings
+  const emails = await db
+    .selectFrom("users")
+    .select(["users.email"])
+    .leftJoin(
+      "notification_settings",
+      "notification_settings.user_id",
+      "users.id"
+    )
+    .where("users.organisation_id", "=", conversation.organisation_id)
+    .where(
+      "notification_settings.type",
+      "=",
+      NotificationSettingsType.CONTACT_DETAILS_LEFT
+    )
+    .where("notification_settings.enabled", "=", true)
+    .execute();
+
+  if (emails.length > 0) {
+    // There is at least someone to send the notification to
+    const oneSignal = getClient();
+
+    const contactDetailsList = [
+      conversation.contact.email,
+      conversation.contact.phone,
+    ].filter((detail) => detail);
+
+    const contact_contact_details =
+      contactDetailsList && contactDetailsList.length > 0
+        ? contactDetailsList.join(" and ")
+        : "No contact details provided";
+
+    const email = new OneSignal.Notification();
+    email.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
+    email.include_email_tokens = emails.map((user) => user.email);
+    email.target_channel = "email";
+    email.email_subject = `${conversation.contact.name} has left their contact details for you`;
+    email.template_id = "b8083b4d-d27f-45db-8e2c-82e15b7a3adb"; // 8ai New Contact Details Left
+    email.custom_data = {
+      id: conversation.id,
+      url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+      channel: conversation.channel,
+      contact_name: conversation.contact.name,
+      contact_contact_details: contact_contact_details,
+      message_count: conversation.messages.length,
+      last_message_at: format(new Date(conversation.last_message_at)),
+      messages: conversation.messages
+        .sort((a, b) => a.created_at - b.created_at)
+        .map((message) => {
+          return {
+            creator: message.creator,
+            message: message.message,
+          };
+        }),
+    };
+
+    await oneSignal.createNotification(email).then(
+      (response) => {
+        context.log(response);
+        context.log(
+          `Successfully sent conversation sentiment warning for ${conversation.id}`
+        );
+      },
+      (error) => context.error(error)
+    );
+  }
+};
+
 export const sendNewConversationAlert = async (
   conversation: ConversationResponse,
   context: InvocationContext

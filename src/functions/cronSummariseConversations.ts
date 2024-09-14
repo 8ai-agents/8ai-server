@@ -107,7 +107,7 @@ export async function cronSummariseConversations(
 
       context.log(`NPS Sentiment for Conversation ${id}: ${sentiment}`);
 
-      if (sentiment < 0 && (currentSentiment >= 0 || !currentSentiment)) {
+      if (sentiment < -1 && (currentSentiment >= -1 || !currentSentiment)) {
         // Send warning
         context.log(
           `Sending Negative Sentiment Warning for Conversation ${id}`

@@ -6,10 +6,11 @@ import {
 } from "./models/MessageResponse";
 import { InvocationContext } from "@azure/functions";
 import { MessageCreatorType, NewOrganisationFile } from "./models/Database";
-import { db } from "./DatabaseController";
+import { db, getFullConversation } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
 import { AssistantTool } from "openai/resources/beta/assistants";
 import { Run } from "openai/resources/beta/threads/runs/runs";
+import { sendContactDetailsAlert } from "./OneSignalHandler";
 
 export const handleMessageForOpenAI = async (
   messageRequest: MessageRequest,
@@ -325,7 +326,12 @@ export const handleThreadRun = async (
       async (tc) => {
         let output = `{ "success": "true" }`;
         if (tc.function.name === "save_contact_details" && contact_id) {
-          output = await saveContactDetails(contact_id, tc.function.arguments);
+          output = await saveContactDetails(
+            contact_id,
+            tc.function.arguments,
+            conversation_id,
+            context
+          );
           context.log(`Save Contact Details: ${output}`);
         }
         return {
@@ -370,19 +376,52 @@ export const handleThreadRun = async (
 
 const saveContactDetails = async (
   contact_id: string,
-  data: string
+  data: string,
+  conversation_id,
+  context
 ): Promise<string> => {
   try {
     const details = JSON.parse(data) as SaveContactDetailsPayload;
-    await db
-      .updateTable("contacts")
-      .set({
-        name: details.name,
-        email: details.email,
-        phone: details.phone,
-      })
+    const existingContact = await db
+      .selectFrom("contacts")
+      .selectAll()
       .where("id", "=", contact_id)
-      .execute();
+      .executeTakeFirst();
+    if (!existingContact) {
+      // create new
+      await db
+        .insertInto("contacts")
+        .values({
+          id: contact_id,
+          name: details.name,
+          email: details.email,
+          phone: details.phone,
+        })
+        .execute();
+    } else {
+      await db
+        .updateTable("contacts")
+        .set({
+          name: details.name,
+          email: details.email,
+          phone: details.phone,
+        })
+        .where("id", "=", contact_id)
+        .execute();
+    }
+
+    if (
+      !existingContact ||
+      (!existingContact.email && !existingContact.phone)
+    ) {
+      // This is the fist time we have seend contact details on this contact
+      // Send a new contact notification
+      await sendContactDetailsAlert(
+        await getFullConversation(conversation_id),
+        context
+      );
+    }
+
     return JSON.stringify(details);
   } catch (error) {
     return "Can't parse details";
