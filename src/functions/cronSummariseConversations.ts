@@ -9,7 +9,10 @@ import {
   SentimentAnalysisSuccessResult,
   SentimentAnalysisResult,
 } from "@azure/ai-language-text";
-import { sendNegativeSentimentWarning } from "../OneSignalHandler";
+import {
+  sendNegativeSentimentWarning,
+  sendNewConversationAlert,
+} from "../OneSignalHandler";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
@@ -26,13 +29,7 @@ export async function cronSummariseConversations(
   const conversations = await db
     .selectFrom("conversations")
     .where("status", "!=", ConversationStatusType.DRAFT)
-    .select([
-      "id",
-      "organisation_id",
-      "last_message_at",
-      "summary",
-      "sentiment",
-    ])
+    .select(["id", "last_message_at", "summary"])
     .execute();
 
   const openai = new OpenAI({
@@ -43,44 +40,44 @@ export async function cronSummariseConversations(
     new AzureKeyCredential(process.env.AZURE_CONGNITIVE_SERVICE_KEY)
   );
 
-  for (const {
-    id,
-    organisation_id,
-    sentiment: currentSentiment,
-  } of conversations.filter(
+  for (const { id: conv_id } of conversations.filter(
     (c) =>
       !c.summary ||
       (c.last_message_at <= tenMinutesAgo &&
         c.last_message_at >= twentyMinutesAgo)
   )) {
-    context.log(`Summarising Conversation ${id}`);
+    context.log(`Summarising Conversation ${conv_id}`);
+    const fullConversation = await getFullConversation(conv_id);
 
-    let summary = "";
-    let sentiment = 0;
+    let updatedSummary = "";
+    let updatedSentiment = 0;
     try {
       // Summarise
       const organisation = organisationsAssistants.find(
-        (o) => o.id === organisation_id
+        (o) => o.id === fullConversation.organisation_id
       );
 
-      summary = await summariseConversation(
+      updatedSummary = await summariseConversation(
         openai,
-        id,
+        conv_id,
         organisation?.assistant_id
       );
     } catch (error: unknown) {
       const err = error as Error;
       context.error(
-        `Summarising Conversation Error ${id} - ${JSON.stringify(err.message)}`
+        `Summarising Conversation Error ${conv_id} - ${JSON.stringify(
+          err.message
+        )}`
       );
-      summary = "Can't summarise this conversation at the moment.";
+      updatedSummary = "Can't summarise this conversation at the moment.";
     }
+    fullConversation.summary = updatedSummary;
 
     try {
       // Sentiment
       const messages = await db
         .selectFrom("messages")
-        .where("conversation_id", "=", id)
+        .where("conversation_id", "=", conv_id)
         .where("creator", "=", MessageCreatorType.CONTACT)
         .select(["message", "created_at"])
         .orderBy("created_at", "desc")
@@ -97,7 +94,7 @@ export async function cronSummariseConversations(
       ) as SentimentAnalysisSuccessResult[];
 
       // Int where negative means more is negative than positive, prioritises negative sentiment and more recent messages
-      sentiment = successResults
+      updatedSentiment = successResults
         .map(
           (r, i) =>
             (r.confidenceScores.positive + r.confidenceScores.negative * -2) *
@@ -105,31 +102,39 @@ export async function cronSummariseConversations(
         )
         .reduce((a, b) => a + b, 0);
 
-      context.log(`NPS Sentiment for Conversation ${id}: ${sentiment}`);
+      context.log(
+        `NPS Sentiment for Conversation ${conv_id}: ${updatedSentiment}`
+      );
 
-      if (sentiment < -1 && (currentSentiment >= -1 || !currentSentiment)) {
+      if (
+        updatedSentiment < -1 &&
+        (fullConversation.sentiment >= -1 || !fullConversation.sentiment)
+      ) {
         // Send warning
         context.log(
-          `Sending Negative Sentiment Warning for Conversation ${id}`
+          `Sending Negative Sentiment Warning for Conversation ${conv_id}`
         );
-        const fullConversation = await getFullConversation(id);
+        fullConversation.sentiment = updatedSentiment;
         await sendNegativeSentimentWarning(fullConversation, context);
       }
     } catch (error: unknown) {
       context.error(
-        `Error getting NPS Sentiment for Conversation ${id} - ${JSON.stringify(
+        `Error getting NPS Sentiment for Conversation ${conv_id} - ${JSON.stringify(
           (error as Error).message
         )}`
       );
     }
+    fullConversation.sentiment = updatedSentiment;
 
     await db
       .updateTable("conversations")
-      .set({ summary, sentiment })
-      .where("id", "=", id)
+      .set({ summary: updatedSummary, sentiment: updatedSentiment })
+      .where("id", "=", conv_id)
       .execute();
 
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await sendNewConversationAlert(fullConversation, context);
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 }
 
