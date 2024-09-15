@@ -23,6 +23,7 @@ export async function updateContactDetails(
           name: contactRequest.name,
           email: contactRequest.email,
           phone: contactRequest.phone,
+          updated_at: Date.now(),
         })
         .where("id", "=", contactRequest.id)
         .returning(["id", "name", "email", "phone", "updated_at"])
