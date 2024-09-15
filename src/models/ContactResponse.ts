@@ -13,6 +13,7 @@ export class ContactResponse {
   email: string;
   phone: string;
   conversations: ConversationsResponse[] | undefined = undefined;
+  updated_at: number | undefined = undefined;
 
   constructor() {
     this.id = createID("cont");

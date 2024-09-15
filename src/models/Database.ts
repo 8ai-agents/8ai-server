@@ -18,6 +18,7 @@ export interface ContactTable {
   email: string | undefined;
   phone: string | undefined;
   slack_id: string | undefined;
+  updated_at: number;
 }
 
 export type Contact = Selectable<ContactTable>;
