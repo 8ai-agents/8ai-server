@@ -4,11 +4,11 @@ import {
   ConversationStatusType,
   Database,
   NewMessage,
-  User,
 } from "./models/Database";
 import { ConversationResponse } from "./models/ConversationResponse";
 import { MessageResponse } from "./models/MessageResponse";
 import { OrganisationResponse } from "./models/OrganisationResponse";
+import { UserResponse } from "./models/UserReponse";
 
 const int8TypeId = 20;
 // Map int8 to number.
@@ -132,12 +132,39 @@ export const getOrganisation = async (
   return result;
 };
 
-export const getUser = (email: string): Promise<User> => {
-  return db
+export const getUser = async (email: string): Promise<UserResponse> => {
+  const user = await db
     .selectFrom("users")
-    .selectAll()
+    .select(["users.id", "users.email", "users.name", "users.phone"])
     .where("email", "=", email.toLowerCase())
-    .executeTakeFirst();
+    .executeTakeFirst()
+    .then((user) => {
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        roles: [],
+      };
+    });
+
+  user.roles = await db
+    .selectFrom("user_roles")
+    .leftJoin("organisations", "organisations.id", "user_roles.organisation_id")
+    .select([
+      "user_roles.role",
+      "user_roles.organisation_id as organisation_id",
+      "organisations.name as organisation_name",
+    ])
+    .where("user_roles.user_id", "=", user.id)
+    .execute()
+    .then((roles) =>
+      roles.map((r) => {
+        return { ...r, user_id: user.id };
+      })
+    );
+
+  return user;
 };
 
 export const saveMessagesToDatabase = (

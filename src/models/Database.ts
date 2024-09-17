@@ -5,6 +5,7 @@ export interface Database {
   conversations: ConversationTable;
   messages: MessageTable;
   users: UserTable;
+  user_roles: UserRoleTable;
   notification_settings: NotificationSettingsTable;
   organisations: OrganisationTable;
   organisation_files: OrganisationFileTable;
@@ -79,11 +80,20 @@ export type NewMessage = Insertable<MessageTable>;
 
 export interface UserTable {
   id: string;
-  organisation_id: string;
   name: string;
   email: string;
   phone: string | undefined;
+}
+
+export type User = Selectable<UserTable>;
+export type NewUser = Insertable<UserTable>;
+export type UserUpdate = Updateable<UserTable>;
+
+export interface UserRoleTable {
+  organisation_id: string;
+  user_id: string;
   role: UserRoleType;
+  active: boolean;
 }
 
 export enum UserRoleType {
@@ -92,9 +102,8 @@ export enum UserRoleType {
   SUPER_ADMIN = "SUPER_ADMIN",
 }
 
-export type User = Selectable<UserTable>;
-export type NewUser = Insertable<UserTable>;
-export type UserUpdate = Updateable<UserTable>;
+export type UserRole = Selectable<UserRoleTable>;
+export type NewUserRole = Insertable<UserRoleTable>;
 
 export interface OrganisationTable {
   id: string;

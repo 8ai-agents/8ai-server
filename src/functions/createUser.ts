@@ -8,7 +8,7 @@ import { authenticateRequest } from "../AuthController";
 import { checkUserIsAdmin, createID } from "../Utils";
 import { UserRequest } from "../models/UserRequest";
 import { NewUser, UserRoleType } from "../models/Database";
-import { db } from "../DatabaseController";
+import { db, getUser } from "../DatabaseController";
 import { UserResponse } from "../models/UserReponse";
 
 export async function createUser(
@@ -36,14 +36,20 @@ export async function createUser(
     context.log(`Creating new user for ${organisation_id}`);
     const userToSave: NewUser = {
       id: createID("user"),
-      organisation_id,
       name: userRequest.name,
       email: userRequest.email.toLowerCase(),
       phone: userRequest.phone,
-      role: userRequest.role,
     };
-    await db.insertInto("users").values(userToSave).executeTakeFirst();
-
+    await db.insertInto("users").values(userToSave).execute();
+    await db
+      .insertInto("user_roles")
+      .values({
+        user_id: userToSave.id,
+        role: userRequest.role,
+        organisation_id,
+        active: true,
+      })
+      .execute();
     // Initialise default notification settings for user
     await db
       .insertInto("notification_settings")
@@ -71,20 +77,7 @@ export async function createUser(
       ])
       .executeTakeFirst();
 
-    const jsonBody: UserResponse = await db
-      .selectFrom("users")
-      .leftJoin("organisations", "organisations.id", "users.organisation_id")
-      .select([
-        "users.id",
-        "users.email",
-        "users.name",
-        "users.phone",
-        "users.role",
-        "organisations.id as organisation_id",
-        "organisations.name as organisation_name",
-      ])
-      .where("email", "=", userToSave.id)
-      .executeTakeFirst();
+    const jsonBody: UserResponse = await getUser(userToSave.email);
 
     return { status: 200, jsonBody };
   } catch (e) {

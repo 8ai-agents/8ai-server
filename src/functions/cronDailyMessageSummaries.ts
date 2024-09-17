@@ -26,12 +26,13 @@ export async function cronDailyMessageSummaries(
       "users.id",
       "notification_settings.user_id"
     )
+    .leftJoin("user_roles", "user_roles.user_id", "users.id")
     .select([
       "users.id",
       "users.name",
       "users.email",
-      "users.organisation_id",
-      "users.role",
+      "user_roles.organisation_id",
+      "user_roles.role",
     ])
     .where("users.email", "!=", "")
     .where(

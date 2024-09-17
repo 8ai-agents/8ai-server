@@ -4,13 +4,13 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { db } from "../DatabaseController";
+import { getUser } from "../DatabaseController";
 import { UserResponse } from "../models/UserReponse";
 import { authenticateRequest } from "../AuthController";
 
 export async function getMyUserProfile(
   request: HttpRequest,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   let authData;
   try {
@@ -21,20 +21,7 @@ export async function getMyUserProfile(
 
   context.log(`get my user profile ${authData.email.toLowerCase()}`);
 
-  const userData: UserResponse = await db
-    .selectFrom("users")
-    .leftJoin("organisations", "organisations.id", "users.organisation_id")
-    .select([
-      "users.id",
-      "users.email",
-      "users.name",
-      "users.phone",
-      "users.role",
-      "organisations.id as organisation_id",
-      "organisations.name as organisation_name",
-    ])
-    .where("email", "=", authData.email.toLowerCase())
-    .executeTakeFirst();
+  const userData: UserResponse = await getUser(authData.email.toLowerCase());
 
   if (userData) {
     return { status: 200, jsonBody: userData };

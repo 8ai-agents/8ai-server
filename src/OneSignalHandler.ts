@@ -150,7 +150,8 @@ export const sendNegativeSentimentWarning = async (
       "notification_settings.user_id",
       "users.id"
     )
-    .where("users.organisation_id", "=", conversation.organisation_id)
+    .leftJoin("user_roles", "user_roles.user_id", "users.id")
+    .where("user_roles.organisation_id", "=", conversation.organisation_id)
     .where(
       "notification_settings.type",
       "=",
@@ -223,7 +224,8 @@ export const sendContactDetailsAlert = async (
       "notification_settings.user_id",
       "users.id"
     )
-    .where("users.organisation_id", "=", conversation.organisation_id)
+    .leftJoin("user_roles", "user_roles.user_id", "users.id")
+    .where("user_roles.organisation_id", "=", conversation.organisation_id)
     .where(
       "notification_settings.type",
       "=",
@@ -295,7 +297,8 @@ export const sendNewConversationAlert = async (
       "notification_settings.user_id",
       "users.id"
     )
-    .where("users.organisation_id", "=", conversation.organisation_id)
+    .leftJoin("user_roles", "user_roles.user_id", "users.id")
+    .where("user_roles.organisation_id", "=", conversation.organisation_id)
     .where(
       "notification_settings.type",
       "=",

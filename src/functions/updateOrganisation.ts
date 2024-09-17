@@ -5,10 +5,11 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { authenticateRequest } from "../AuthController";
-import { OrganisationUpdate, UserRoleType } from "../models/Database";
+import { OrganisationUpdate } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
-import { db, getOrganisation, getUser } from "../DatabaseController";
+import { db, getOrganisation } from "../DatabaseController";
 import { updateAssistantFile } from "../OpenAIHandler";
+import { checkUserIsAdmin } from "../Utils";
 
 export async function updateOrganisation(
   request: HttpRequest,
@@ -16,8 +17,7 @@ export async function updateOrganisation(
 ): Promise<HttpResponseInit> {
   try {
     const { email } = await authenticateRequest(request);
-    const user = await getUser(email);
-    if (user.role != UserRoleType.SUPER_ADMIN) return { status: 403 };
+    if (!checkUserIsAdmin("", email, true)) return { status: 403 };
   } catch {
     return { status: 401 };
   }
