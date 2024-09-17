@@ -5,7 +5,7 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { authenticateRequest } from "../AuthController";
-import { NewOrganisation } from "../models/Database";
+import { NewOrganisation, UserRoleType } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { db, getOrganisation } from "../DatabaseController";
 import { checkUserIsAdmin, createID } from "../Utils";
@@ -46,6 +46,27 @@ export async function createOrganisation(
       .values(organisationToSave)
       .executeTakeFirst();
 
+    // Create new roles for all super admins
+    const superAdminIDs = await db
+      .selectFrom("user_roles")
+      .select(["user_id"])
+      .where("role", "=", UserRoleType.SUPER_ADMIN)
+      .execute();
+    await db
+      .insertInto("user_roles")
+      .values(
+        superAdminIDs
+          .map((id) => ({
+            user_id: id.user_id,
+            organisation_id: organisationToSave.id,
+            role: UserRoleType.SUPER_ADMIN,
+            active: true,
+          }))
+          .flat()
+      )
+      .execute();
+
+    // Open AI assistant stuff
     if (!organisationRequest.assistant_id) {
       // Create a new assistant using OpenAI's JS SDK
       try {
