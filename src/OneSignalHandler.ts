@@ -62,6 +62,52 @@ export const sendDailySummary = async (
   }
 };
 
+export const sendWeeklySummary = async (
+  conversations: ConversationResponse[],
+  users: User[],
+  context: InvocationContext
+) => {
+  const oneSignal = getClient();
+
+  for (const user of users.filter((user) => user.email)) {
+    const email = new OneSignal.Notification();
+    email.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
+    email.include_email_tokens = [user.email];
+    email.target_channel = "email";
+    email.email_subject = "8ai Weekly Conversations Summary";
+    email.template_id = "8d897023-de37-461f-8fc9-f383159188a7"; // 8ai Weekly Conversation Summary
+    email.custom_data = {
+      user_name: user.name,
+      total_count: conversations.length,
+      conversations: conversations
+        .filter((c) => c.messages?.length > 0)
+        .map((conversation) => {
+          return {
+            id: conversation.id,
+            url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+            name: conversation.contact.name,
+            email: conversation.contact.email,
+            phone: conversation.contact.phone,
+            summary: conversation.summary,
+            sentiment: conversation.sentiment,
+            message_count: conversation.messages.length,
+            last_message_at: format(new Date(conversation.last_message_at)),
+          };
+        }),
+    };
+
+    await oneSignal.createNotification(email).then(
+      (response) => {
+        context.log(response);
+        context.log(
+          `Successfully sent weekly summary to ${users.length} users`
+        );
+      },
+      (error) => context.error(error)
+    );
+  }
+};
+
 export const sendDailySummaryToSuperAdmins = async (
   conversations: ConversationsResponse[],
   superAdmins: {

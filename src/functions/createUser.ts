@@ -7,7 +7,11 @@ import {
 import { authenticateRequest } from "../AuthController";
 import { checkUserIsAdmin, createID } from "../Utils";
 import { UserRequest } from "../models/UserRequest";
-import { NewUser, UserRoleType } from "../models/Database";
+import {
+  NewUser,
+  NotificationSettingsType,
+  UserRoleType,
+} from "../models/Database";
 import { db, getUser } from "../DatabaseController";
 import { UserResponse } from "../models/UserReponse";
 
@@ -26,7 +30,6 @@ export async function createUser(
 
   try {
     const userRequest = (await request.json()) as UserRequest;
-
     // We don't allow assigning super admin role yet for safety reasons
     userRequest.role =
       userRequest.role === UserRoleType.SUPER_ADMIN
@@ -56,22 +59,27 @@ export async function createUser(
       .values([
         {
           user_id: userToSave.id,
-          type: "DAILY_SUMMARY",
+          type: NotificationSettingsType.DAILY_SUMMARY,
           enabled: true,
         },
         {
           user_id: userToSave.id,
-          type: "NEGATIVE_SENTIMENT",
+          type: NotificationSettingsType.WEEKLY_SUMMARY,
+          enabled: false,
+        },
+        {
+          user_id: userToSave.id,
+          type: NotificationSettingsType.NEGATIVE_SENTIMENT,
           enabled: true,
         },
         {
           user_id: userToSave.id,
-          type: "CONTACT_DETAILS_LEFT",
+          type: NotificationSettingsType.CONTACT_DETAILS_LEFT,
           enabled: true,
         },
         {
           user_id: userToSave.id,
-          type: "NEW_CONVERSATION",
+          type: NotificationSettingsType.NEW_CONVERSATION,
           enabled: false,
         },
       ])
