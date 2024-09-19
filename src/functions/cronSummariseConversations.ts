@@ -107,8 +107,8 @@ export async function cronSummariseConversations(
       );
 
       if (
-        updatedSentiment < -1 &&
-        (fullConversation.sentiment >= -1 || !fullConversation.sentiment)
+        updatedSentiment < -1.5 &&
+        (fullConversation.sentiment > -1.5 || !fullConversation.sentiment)
       ) {
         // Send warning
         context.log(
