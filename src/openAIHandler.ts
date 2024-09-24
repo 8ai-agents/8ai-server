@@ -368,6 +368,11 @@ export const handleThreadRun = async (
     }
   } else {
     context.error(run.status);
+    if (run.last_error) {
+      context.error(
+        `Last error: ${run.last_error.code}: ${run.last_error.message}`
+      );
+    }
     throw new Error("OpenAI request failed");
   }
 
