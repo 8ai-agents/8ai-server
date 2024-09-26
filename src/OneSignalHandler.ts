@@ -435,23 +435,19 @@ const constrainCustomDataToSize = (
       result.organisations = customData.organisations.map(
         (org: any) =>
           (org.conversations = org.conversations.map((conversation: any) => {
-            const result = conversation;
-            result.summary.pop();
-            return result;
+            return { ...conversation, summary: "" };
           }))
       );
     }
     if (result.conversations) {
       result.conversations = customData.conversations.map(
         (conversation: any) => {
-          const result = conversation;
-          result.summary.pop();
-          return result;
+          return { ...conversation, summary: "" };
         }
       );
     }
     if (result.messages) {
-      result.messages.pop();
+      result = { ...customData, messages: [] };
     }
   }
   return result;
