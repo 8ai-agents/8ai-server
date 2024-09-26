@@ -40,7 +40,6 @@ export async function updateOrganisation(
 
     // Update fields
     orgToUpdate.name = organisationRequest.name;
-    orgToUpdate.assistant_id = organisationRequest.assistant_id;
     orgToUpdate.description = organisationRequest.description;
     orgToUpdate.logo_url = organisationRequest.logo_url;
     orgToUpdate.website = organisationRequest.website;
@@ -49,6 +48,8 @@ export async function updateOrganisation(
     orgToUpdate.chat_icon_color = organisationRequest.chat_icon_color;
     orgToUpdate.chat_bubble_color = organisationRequest.chat_bubble_color;
     orgToUpdate.chat_text_color = organisationRequest.chat_text_color;
+    orgToUpdate.system_prompt = organisationRequest.system_prompt;
+    orgToUpdate.default_questions = organisationRequest.default_questions;
     if (organisationRequest.fine_tuning_data) {
       // Fine tuning data has been updated, update OpenAI
       orgToUpdate.fine_tuning_filename =

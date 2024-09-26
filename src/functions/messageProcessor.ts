@@ -84,9 +84,9 @@ const processSlackBotMessage = async (
       data.message += " [Modified because this is an alignment channel]";
     }
 
-    const { assistant_id } = await db
+    const { assistant_id, system_prompt } = await db
       .selectFrom("organisations")
-      .select(["assistant_id"])
+      .select(["assistant_id", "system_prompt"])
       .where("id", "=", data.organisation_id)
       .executeTakeFirst();
 
@@ -168,6 +168,7 @@ const processSlackBotMessage = async (
             creator: MessageCreatorType.CONTACT,
           },
           assistant_id,
+          system_prompt,
           contact_id,
           context
         );
@@ -176,6 +177,7 @@ const processSlackBotMessage = async (
         // We are starting a new one
         const openAIResponseData = await handleNewMessageForOpenAI(
           assistant_id,
+          system_prompt,
           data.message.toString(),
           context
         );
@@ -268,14 +270,15 @@ const processSlackSlashMessage = async (
   try {
     const data = event.data as SlackSlashMessageEvent;
 
-    const { assistant_id } = await db
+    const { assistant_id, system_prompt } = await db
       .selectFrom("organisations")
-      .select(["assistant_id"])
+      .select(["assistant_id", "system_prompt"])
       .where("id", "=", data.organisation_id)
       .executeTakeFirst();
 
     const openAIResponseData = await handleNewMessageForOpenAI(
       assistant_id,
+      system_prompt,
       data.message.toString(),
       context
     );

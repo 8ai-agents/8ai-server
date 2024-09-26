@@ -12,4 +12,6 @@ export interface OrganisationRequest {
   chat_text_color: string;
   fine_tuning_filename: string;
   fine_tuning_data: string; // Actually a JSON string
+  default_questions: string[];
+  system_prompt: string;
 }

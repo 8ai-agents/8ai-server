@@ -12,9 +12,18 @@ import { AssistantTool } from "openai/resources/beta/assistants";
 import { Run } from "openai/resources/beta/threads/runs/runs";
 import { sendContactDetailsAlert } from "./OneSignalHandler";
 
+export const createConversationForOpenAI = async (): Promise<string> => {
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_API_KEY,
+  });
+  const thread = await openai.beta.threads.create();
+  return thread.id;
+};
+
 export const handleMessageForOpenAI = async (
   messageRequest: MessageRequest,
   assistant_id: string,
+  system_prompt: string,
   contact_id: string,
   context: InvocationContext
 ): Promise<MessageResponse[]> => {
@@ -31,7 +40,7 @@ export const handleMessageForOpenAI = async (
     thread_id,
     {
       assistant_id,
-      instructions: "",
+      instructions: system_prompt,
     },
     { pollIntervalMs: 1000 }
   );
@@ -48,6 +57,7 @@ export const handleMessageForOpenAI = async (
 
 export const handleSingleMessageForOpenAI = async (
   assistant_id: string,
+  system_prompt: string,
   message: string,
   context: InvocationContext
 ): Promise<{ thread_id: string; response: MessageResponse[] }> => {
@@ -57,7 +67,7 @@ export const handleSingleMessageForOpenAI = async (
   const run = await openai.beta.threads.createAndRunPoll(
     {
       assistant_id,
-      instructions: "",
+      instructions: system_prompt,
       thread: {
         messages: [
           {
@@ -156,7 +166,8 @@ export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
   organisation_description: string,
-  filedata: string
+  filedata: string,
+  system_prompt: string
 ) => {
   const openai = new OpenAI({
     apiKey: process.env.OPEN_API_KEY,
@@ -169,7 +180,7 @@ export const createAssistant = async (
         .split(" ")
         .join("-")
         .toLowerCase()}`,
-      instructions: `You are a customer support agent for ${organisation_name}. ${organisation_description} Please answer concisely and nicely to potential customers, if you don't know the answer or the question is sensitive, please ask them to provide a contact details for a response by an expert within 2 business days, never provide negative information about ${organisation_name} or information about competitors.`,
+      instructions: system_prompt,
       model: "gpt-4o-mini",
       tools: getToolModel(false),
     });

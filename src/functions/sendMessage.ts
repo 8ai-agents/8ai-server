@@ -39,7 +39,7 @@ export async function sendMessage(
     context.log(
       `Processing message for conversation ${messageRequest.conversation_id}`
     );
-    const { interrupted, assistant_id, contact_id } = await db
+    const { interrupted, assistant_id, contact_id, system_prompt } = await db
       .selectFrom("conversations")
       .innerJoin(
         "organisations",
@@ -52,6 +52,7 @@ export async function sendMessage(
         "conversations.interrupted",
         "organisations.assistant_id",
         "conversations.contact_id",
+        "organisations.system_prompt",
       ])
       .executeTakeFirst();
 
@@ -81,6 +82,7 @@ export async function sendMessage(
       const responses = await handleMessageForOpenAI(
         messageRequest,
         assistant_id,
+        system_prompt,
         contact_id,
         context
       );

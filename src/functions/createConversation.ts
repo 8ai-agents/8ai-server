@@ -4,7 +4,6 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import OpenAI from "openai";
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import {
   ConversationChannelType,
@@ -13,6 +12,7 @@ import {
 } from "../models/Database";
 import { db } from "../DatabaseController";
 import { ContactResponse } from "../models/ContactResponse";
+import { createConversationForOpenAI } from "../OpenAIHandler";
 
 export async function createConversation(
   request: HttpRequest,
@@ -21,13 +21,10 @@ export async function createConversation(
   try {
     const org_id = request.params.org_id;
     context.log(`Creating new conversation for org ${org_id}`);
-    const openai = new OpenAI({
-      apiKey: process.env.OPEN_API_KEY,
-    });
-    const thread = await openai.beta.threads.create();
     const newContact: ContactResponse = new ContactResponse();
+    const threadID = await createConversationForOpenAI();
     const response: ConversationsResponse = new ConversationsResponse(
-      thread.id,
+      threadID,
       newContact.name,
       org_id
     );

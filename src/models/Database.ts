@@ -119,6 +119,7 @@ export interface OrganisationTable {
   chat_text_color: string;
   fine_tuning_filename: string;
   default_questions: string[];
+  system_prompt: string;
 }
 
 export type Organisation = Selectable<OrganisationTable>;

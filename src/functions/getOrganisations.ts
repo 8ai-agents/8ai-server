@@ -37,6 +37,7 @@ export async function getOrganisations(
       "chat_text_color",
       "fine_tuning_filename",
       "default_questions",
+      "system_prompt",
     ])
     .execute();
 

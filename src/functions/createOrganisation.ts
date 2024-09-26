@@ -39,7 +39,8 @@ export async function createOrganisation(
       chat_bubble_color: organisationRequest.chat_bubble_color,
       chat_text_color: organisationRequest.chat_text_color,
       fine_tuning_filename: organisationRequest.fine_tuning_filename,
-      default_questions: [],
+      default_questions: organisationRequest.default_questions || [],
+      system_prompt: organisationRequest.system_prompt,
     };
     await db
       .insertInto("organisations")
@@ -74,7 +75,8 @@ export async function createOrganisation(
           organisationToSave.id,
           organisationRequest.name,
           organisationRequest.description,
-          organisationRequest.fine_tuning_data
+          organisationRequest.fine_tuning_data,
+          organisationRequest.system_prompt
         );
         // save assistant ID to org
         await db
