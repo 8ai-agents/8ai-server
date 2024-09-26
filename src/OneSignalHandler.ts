@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { InvocationContext } from "@azure/functions";
 import {
   NotificationSettingsType,
@@ -32,25 +33,28 @@ export const sendDailySummary = async (
     email.target_channel = "email";
     email.email_subject = "8ai Daily Conversations Summary";
     email.template_id = "6be607d6-5963-40ef-af7f-134557e49bfd"; // 8ai Daily Conversation Summary
-    email.custom_data = {
-      user_name: user.name,
-      total_count: conversations.length,
-      conversations: conversations
-        .filter((c) => c.messages?.length > 0)
-        .map((conversation) => {
-          return {
-            id: conversation.id,
-            url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
-            name: conversation.contact.name,
-            email: conversation.contact.email,
-            phone: conversation.contact.phone,
-            summary: conversation.summary,
-            sentiment: conversation.sentiment,
-            message_count: conversation.messages.length,
-            last_message_at: format(new Date(conversation.last_message_at)),
-          };
-        }),
-    };
+    email.custom_data = constrainCustomDataToSize(
+      {
+        user_name: user.name,
+        total_count: conversations.length,
+        conversations: conversations
+          .filter((c) => c.messages?.length > 0)
+          .map((conversation) => {
+            return {
+              id: conversation.id,
+              url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+              name: conversation.contact.name,
+              email: conversation.contact.email,
+              phone: conversation.contact.phone,
+              summary: conversation.summary,
+              sentiment: conversation.sentiment,
+              message_count: conversation.messages.length,
+              last_message_at: format(new Date(conversation.last_message_at)),
+            };
+          }),
+      },
+      context
+    );
 
     await oneSignal.createNotification(email).then(
       (response) => {
@@ -76,25 +80,28 @@ export const sendWeeklySummary = async (
     email.target_channel = "email";
     email.email_subject = "8ai Weekly Conversations Summary";
     email.template_id = "8d897023-de37-461f-8fc9-f383159188a7"; // 8ai Weekly Conversation Summary
-    email.custom_data = {
-      user_name: user.name,
-      total_count: conversations.length,
-      conversations: conversations
-        .filter((c) => c.messages?.length > 0)
-        .map((conversation) => {
-          return {
-            id: conversation.id,
-            url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
-            name: conversation.contact.name,
-            email: conversation.contact.email,
-            phone: conversation.contact.phone,
-            summary: conversation.summary,
-            sentiment: conversation.sentiment,
-            message_count: conversation.messages.length,
-            last_message_at: format(new Date(conversation.last_message_at)),
-          };
-        }),
-    };
+    email.custom_data = constrainCustomDataToSize(
+      {
+        user_name: user.name,
+        total_count: conversations.length,
+        conversations: conversations
+          .filter((c) => c.messages?.length > 0)
+          .map((conversation) => {
+            return {
+              id: conversation.id,
+              url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+              name: conversation.contact.name,
+              email: conversation.contact.email,
+              phone: conversation.contact.phone,
+              summary: conversation.summary,
+              sentiment: conversation.sentiment,
+              message_count: conversation.messages.length,
+              last_message_at: format(new Date(conversation.last_message_at)),
+            };
+          }),
+      },
+      context
+    );
 
     await oneSignal.createNotification(email).then(
       (response) => {
@@ -167,10 +174,13 @@ export const sendDailySummaryToSuperAdmins = async (
   email.target_channel = "email";
   email.email_subject = "8ai Super Admin Daily Conversations Summary";
   email.template_id = "0129c557-6403-43f8-bf53-f8e806769ce9"; // 8ai Daily Conversation Summary Super Admins
-  email.custom_data = {
-    total_count: conversations.length,
-    organisations: organisationsData,
-  };
+  email.custom_data = constrainCustomDataToSize(
+    {
+      total_count: conversations.length,
+      organisations: organisationsData,
+    },
+    context
+  );
 
   await oneSignal.createNotification(email).then(
     (response) => {
@@ -226,24 +236,27 @@ export const sendNegativeSentimentWarning = async (
     email.target_channel = "email";
     email.email_subject = `Sentiment of conversation with ${conversation.contact.name} is trending negative`;
     email.template_id = "8f0cd5d8-3486-4c60-9d64-755d00fb5e4a"; // 8ai Negative Sentiment Warning
-    email.custom_data = {
-      id: conversation.id,
-      url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
-      contact_name: conversation.contact.name,
-      contact_contact_details: contact_contact_details,
-      summary: conversation.summary,
-      sentiment: conversation.sentiment,
-      message_count: conversation.messages.length,
-      last_message_at: format(new Date(conversation.last_message_at)),
-      messages: conversation.messages
-        .sort((a, b) => a.created_at - b.created_at)
-        .map((message) => {
-          return {
-            creator: message.creator,
-            message: message.message,
-          };
-        }),
-    };
+    email.custom_data = constrainCustomDataToSize(
+      {
+        id: conversation.id,
+        url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        contact_name: conversation.contact.name,
+        contact_contact_details: contact_contact_details,
+        summary: conversation.summary,
+        sentiment: conversation.sentiment,
+        message_count: conversation.messages.length,
+        last_message_at: format(new Date(conversation.last_message_at)),
+        messages: conversation.messages
+          .sort((a, b) => a.created_at - b.created_at)
+          .map((message) => {
+            return {
+              creator: message.creator,
+              message: message.message,
+            };
+          }),
+      },
+      context
+    );
 
     await oneSignal.createNotification(email).then(
       (response) => {
@@ -300,23 +313,26 @@ export const sendContactDetailsAlert = async (
     email.target_channel = "email";
     email.email_subject = `${conversation.contact.name} has left their contact details for you`;
     email.template_id = "b8083b4d-d27f-45db-8e2c-82e15b7a3adb"; // 8ai New Contact Details Left
-    email.custom_data = {
-      id: conversation.id,
-      url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
-      channel: conversation.channel,
-      contact_name: conversation.contact.name,
-      contact_contact_details: contact_contact_details,
-      message_count: conversation.messages.length,
-      last_message_at: format(new Date(conversation.last_message_at)),
-      messages: conversation.messages
-        .sort((a, b) => a.created_at - b.created_at)
-        .map((message) => {
-          return {
-            creator: message.creator,
-            message: message.message,
-          };
-        }),
-    };
+    email.custom_data = constrainCustomDataToSize(
+      {
+        id: conversation.id,
+        url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        channel: conversation.channel,
+        contact_name: conversation.contact.name,
+        contact_contact_details: contact_contact_details,
+        message_count: conversation.messages.length,
+        last_message_at: format(new Date(conversation.last_message_at)),
+        messages: conversation.messages
+          .sort((a, b) => a.created_at - b.created_at)
+          .map((message) => {
+            return {
+              creator: message.creator,
+              message: message.message,
+            };
+          }),
+      },
+      context
+    );
 
     await oneSignal.createNotification(email).then(
       (response) => {
@@ -373,22 +389,25 @@ export const sendNewConversationAlert = async (
     email.target_channel = "email";
     email.email_subject = `New conversation with ${conversation.contact.name} over ${conversation.channel}`;
     email.template_id = "3ba3aa30-3333-4d2b-9de9-76dda85d3972"; // 8ai New Conversation Warning
-    email.custom_data = {
-      id: conversation.id,
-      url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
-      contact_name: conversation.contact.name,
-      contact_contact_details: contact_contact_details,
-      message_count: conversation.messages.length,
-      last_message_at: format(new Date(conversation.last_message_at)),
-      messages: conversation.messages
-        .sort((a, b) => a.created_at - b.created_at)
-        .map((message) => {
-          return {
-            creator: message.creator,
-            message: message.message,
-          };
-        }),
-    };
+    email.custom_data = constrainCustomDataToSize(
+      {
+        id: conversation.id,
+        url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        contact_name: conversation.contact.name,
+        contact_contact_details: contact_contact_details,
+        message_count: conversation.messages.length,
+        last_message_at: format(new Date(conversation.last_message_at)),
+        messages: conversation.messages
+          .sort((a, b) => a.created_at - b.created_at)
+          .map((message) => {
+            return {
+              creator: message.creator,
+              message: message.message,
+            };
+          }),
+      },
+      context
+    );
 
     await oneSignal.createNotification(email).then(
       (response) => {
@@ -401,3 +420,42 @@ export const sendNewConversationAlert = async (
     );
   }
 };
+
+const constrainCustomDataToSize = (
+  customData: any,
+  context: InvocationContext
+) => {
+  // The payload may include up to 10 kilobytes for email messages.
+  let result = customData;
+  if (getPayloadSize(result) >= 10 * 1024) {
+    context.warn("Payload is too large, attempting to reduce");
+    // Result is too big!
+    result = customData;
+    if (result.organisations) {
+      result.organisations = customData.organisations.map(
+        (org: any) =>
+          (org.conversations = org.conversations.map((conversation: any) => {
+            const result = conversation;
+            result.summary.pop();
+            return result;
+          }))
+      );
+    }
+    if (result.conversations) {
+      result.conversations = customData.conversations.map(
+        (conversation: any) => {
+          const result = conversation;
+          result.summary.pop();
+          return result;
+        }
+      );
+    }
+    if (result.messages) {
+      result.messages.pop();
+    }
+  }
+  return result;
+};
+
+const getPayloadSize = (payload: any) =>
+  Buffer.byteLength(JSON.stringify(payload), "utf8");
