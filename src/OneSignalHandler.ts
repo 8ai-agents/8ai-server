@@ -351,24 +351,49 @@ export const sendNewConversationAlert = async (
   context: InvocationContext
 ) => {
   // We fist check if any user is subscribed to new conversation warnings
-  const emails = await db
-    .selectFrom("users")
-    .select(["users.email"])
-    .leftJoin(
-      "notification_settings",
-      "notification_settings.user_id",
-      "users.id"
-    )
+  const data = await db
+    .selectFrom("notification_settings")
+    .leftJoin("users", "notification_settings.user_id", "users.id")
     .leftJoin("user_roles", "user_roles.user_id", "users.id")
     .where("user_roles.organisation_id", "=", conversation.organisation_id)
-    .where(
-      "notification_settings.type",
-      "=",
-      NotificationSettingsType.NEW_CONVERSATION
-    )
+    .where("notification_settings.type", "in", [
+      NotificationSettingsType.NEW_CONVERSATION,
+      NotificationSettingsType.NEW_CONVERSATION_SMS,
+      NotificationSettingsType.NEW_CONVERSATION_WHATSAPP,
+    ])
     .where("notification_settings.enabled", "=", true)
+    .select(["users.email", "users.phone", "notification_settings.type"])
     .execute();
 
+  if (data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)) {
+    // Send email
+    await sendNewConversationAlertEmail(
+      data
+        .filter((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)
+        .map((d) => d.email),
+      conversation,
+      context
+    );
+  }
+  if (
+    data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS)
+  ) {
+    // Send email
+    await sendNewConversationAlertSMS(
+      data
+        .filter((d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS)
+        .map((d) => d.phone),
+      conversation,
+      context
+    );
+  }
+};
+
+export const sendNewConversationAlertEmail = async (
+  emails: string[],
+  conversation: ConversationResponse,
+  context: InvocationContext
+) => {
   if (emails.length > 0) {
     // There is at least someone to send the notification to
     const oneSignal = getClient();
@@ -385,7 +410,7 @@ export const sendNewConversationAlert = async (
 
     const email = new OneSignal.Notification();
     email.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
-    email.include_email_tokens = emails.map((user) => user.email);
+    email.include_email_tokens = emails;
     email.target_channel = "email";
     email.email_subject = `New conversation with ${conversation.contact.name} over ${conversation.channel}`;
     email.template_id = "3ba3aa30-3333-4d2b-9de9-76dda85d3972"; // 8ai New Conversation Warning
@@ -413,7 +438,41 @@ export const sendNewConversationAlert = async (
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent conversation sentiment warning for ${conversation.id}`
+          `Successfully sent new conversation email warning for ${conversation.id}`
+        );
+      },
+      (error) => context.error(error)
+    );
+  }
+};
+
+export const sendNewConversationAlertSMS = async (
+  numbers: string[],
+  conversation: ConversationResponse,
+  context: InvocationContext
+) => {
+  const activeNumbers = numbers
+    .filter((number) => number)
+    .map((number) => number.trim())
+    .map((number) => number.replace(" ", ""))
+    .map((number) => number.replace("-", ""));
+  if (activeNumbers.length > 0) {
+    // There is at least someone to send the notification to
+    const oneSignal = getClient();
+    const sms = new OneSignal.Notification();
+    sms.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
+    sms.name = "New Conversation with ${conversation.contact.name}";
+    sms.target_channel = "sms";
+    sms.contents = {
+      en: `New conversation with ${conversation.contact.name} at https://app.8ai.co.nz/conversations/${conversation.id}. ${conversation.summary}`,
+    };
+    sms.include_phone_numbers = activeNumbers;
+
+    await oneSignal.createNotification(sms).then(
+      (response) => {
+        context.log(response);
+        context.log(
+          `Successfully sent new conversation sms warning for ${conversation.id}`
         );
       },
       (error) => context.error(error)
