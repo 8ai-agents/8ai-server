@@ -26,7 +26,7 @@ export async function getConversations(
   }
 
   try {
-    const { email } = await authenticateRequest(request);
+    const email = await authenticateRequest(request);
     if (!checkUserIsAdmin(org_id, email)) return { status: 403 };
   } catch {
     return { status: 401 };

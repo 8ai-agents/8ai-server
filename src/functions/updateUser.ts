@@ -17,7 +17,7 @@ export async function updateUser(
 ): Promise<HttpResponseInit> {
   const organisation_id = request.params.organisation_id;
   try {
-    const { email } = await authenticateRequest(request);
+    const email = await authenticateRequest(request);
     if (!checkUserIsAdmin(organisation_id, email, false))
       return { status: 403 };
   } catch {

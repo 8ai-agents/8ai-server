@@ -3,7 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 export const authenticateRequest = async (
   request: HttpRequest
-): Promise<{ email: string }> => {
+): Promise<string> => {
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader) {
@@ -27,7 +27,5 @@ export const authenticateRequest = async (
     audience: "https://api.8ai.co.nz",
   });
 
-  return {
-    email: payload["email"] as string,
-  };
+  return payload["email"] as string;
 };

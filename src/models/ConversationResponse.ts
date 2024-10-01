@@ -1,4 +1,5 @@
 import { ContactResponse } from "./ContactResponse";
+import { ConversationFeedbackResponse } from "./ConversationFeedbackResponse";
 import { ConversationChannelType, ConversationStatusType } from "./Database";
 import { MessageResponse } from "./MessageResponse";
 
@@ -13,4 +14,5 @@ export interface ConversationResponse {
   summary: string;
   sentiment: number;
   channel: ConversationChannelType;
+  feedback: ConversationFeedbackResponse;
 }

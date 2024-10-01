@@ -39,6 +39,17 @@ export interface ConversationTable {
   sentiment: number | undefined;
   channel: ConversationChannelType;
   channel_id: string | undefined;
+  feedback_rating: FeedbackRatingType;
+  feedback_suggestion: string;
+  feedback_created_at: number;
+  feedback_user_id: string;
+}
+
+export enum FeedbackRatingType {
+  INCORRECT = "INCORRECT",
+  NOT_HELPFUL = "NOT_HELPFUL",
+  HELPFUL = "HELPFUL",
+  VERY_HELPFUL = "VERY_HELPFUL",
 }
 
 export enum ConversationChannelType {

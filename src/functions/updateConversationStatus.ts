@@ -7,17 +7,12 @@ import {
 import { authenticateRequest } from "../AuthController";
 import { db, getFullConversation } from "../DatabaseController";
 import { ConversationStatusType } from "../models/Database";
+import { checkUserIsAdmin } from "../Utils";
 
 export async function updateConversationStatus(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  try {
-    await authenticateRequest(request);
-  } catch {
-    return { status: 401 };
-  }
-
   const conv_id = request.params.conv_id as string;
   const new_status = request.params.new_status as ConversationStatusType;
   if (!conv_id) {
@@ -36,6 +31,20 @@ export async function updateConversationStatus(
       },
     };
   }
+
+  const { organisation_id } = await db
+    .selectFrom("conversations")
+    .select(["organisation_id"])
+    .executeTakeFirst();
+
+  try {
+    const email = await authenticateRequest(request);
+    if (!checkUserIsAdmin(organisation_id, email, false))
+      return { status: 403 };
+  } catch {
+    return { status: 401 };
+  }
+
   context.log(`Update Conversation Status ${conv_id}`);
 
   await db

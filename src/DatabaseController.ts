@@ -55,6 +55,10 @@ export const getFullConversation = async (
       "conversations.summary",
       "conversations.sentiment",
       "conversations.channel",
+      "conversations.feedback_suggestion",
+      "conversations.feedback_rating",
+      "conversations.feedback_user_id",
+      "conversations.feedback_created_at",
     ])
     .executeTakeFirst();
 
@@ -77,6 +81,12 @@ export const getFullConversation = async (
       summary: conversationData.summary,
       sentiment: conversationData.sentiment,
       channel: conversationData.channel,
+      feedback: {
+        feedback_suggestion: conversationData.feedback_suggestion,
+        feedback_rating: conversationData.feedback_rating,
+        feedback_user_id: conversationData.feedback_user_id,
+        feedback_created_at: conversationData.feedback_created_at,
+      },
     };
   } else {
     throw "Can't find coversation";
