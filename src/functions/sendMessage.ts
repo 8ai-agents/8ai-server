@@ -24,7 +24,7 @@ export async function sendMessage(
     let user_id: string | undefined = undefined;
     if (messageRequest.creator === MessageCreatorType.USER) {
       // We need to retrieve userID from token
-      const { email } = await authenticateRequest(request);
+      const email = await authenticateRequest(request);
       if (email) {
         const { id } = await db
           .selectFrom("users")

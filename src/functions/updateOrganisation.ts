@@ -16,7 +16,7 @@ export async function updateOrganisation(
   context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
-    const { email } = await authenticateRequest(request);
+    const email = await authenticateRequest(request);
     if (!checkUserIsAdmin("", email, true)) return { status: 403 };
   } catch {
     return { status: 401 };
