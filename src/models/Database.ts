@@ -48,7 +48,6 @@ export interface ConversationTable {
 export enum FeedbackRatingType {
   INCORRECT = "INCORRECT",
   NOT_HELPFUL = "NOT_HELPFUL",
-  UNKNOWN = "UNKNOWN",
   HELPFUL = "HELPFUL",
   VERY_HELPFUL = "VERY_HELPFUL",
 }
