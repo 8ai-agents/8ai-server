@@ -62,6 +62,7 @@ export async function updateConversationFeedback(
           "feedback_created_at",
         ])
         .executeTakeFirst()),
+      feedback_user_name: user.name,
     };
 
     return {

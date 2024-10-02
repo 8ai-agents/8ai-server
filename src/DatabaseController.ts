@@ -40,6 +40,7 @@ export const getFullConversation = async (
   const conversationData = await db
     .selectFrom("conversations")
     .leftJoin("contacts", "contacts.id", "conversations.contact_id")
+    .leftJoin("users", "users.id", "conversations.feedback_user_id")
     .where("conversations.id", "=", conv_id)
     .select([
       "conversations.id",
@@ -59,6 +60,7 @@ export const getFullConversation = async (
       "conversations.feedback_rating",
       "conversations.feedback_user_id",
       "conversations.feedback_created_at",
+      "users.name as feedback_user_name",
     ])
     .executeTakeFirst();
 
@@ -86,6 +88,7 @@ export const getFullConversation = async (
         feedback_rating: conversationData.feedback_rating,
         feedback_user_id: conversationData.feedback_user_id,
         feedback_created_at: conversationData.feedback_created_at,
+        feedback_user_name: conversationData.feedback_user_name,
       },
     };
   } else {

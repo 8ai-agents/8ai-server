@@ -12,16 +12,16 @@ export async function getMyUserProfile(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  let authData;
+  let email: string;
   try {
-    authData = await authenticateRequest(request);
+    email = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }
 
-  context.log(`get my user profile ${authData.email.toLowerCase()}`);
+  context.log(`get my user profile ${email.toLowerCase()}`);
 
-  const userData: UserResponse = await getUser(authData.email.toLowerCase());
+  const userData: UserResponse = await getUser(email.toLowerCase());
 
   if (userData) {
     return { status: 200, jsonBody: userData };
