@@ -161,6 +161,6 @@ export async function cronDailyMessageSummaries(
 
 app.timer("cronDailyMessageSummaries", {
   schedule: "0 0 5 * * *", // Every day at 5am UTC
-  runOnStartup: true,
+  runOnStartup: false,
   handler: cronDailyMessageSummaries,
 });
