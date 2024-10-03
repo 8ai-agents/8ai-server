@@ -54,6 +54,13 @@ export async function cronDailyMessageSummaries(
       return acc;
     }, {});
 
+  const allOrgIDNameMap = (
+    await db.selectFrom("organisations").select(["id", "name"]).execute()
+  ).reduce((acc, org) => {
+    acc[org.id] = org.name;
+    return acc;
+  }, {});
+
   for (const orgId in allUsersByOrgId) {
     try {
       const users = allUsersByOrgId[orgId];
@@ -80,7 +87,12 @@ export async function cronDailyMessageSummaries(
         context.log(
           `Sending Daily Message Summaries - sending orgId: ${orgId}`
         );
-        await sendDailySummary(fullConversations, users, context);
+        await sendDailySummary(
+          allOrgIDNameMap[orgId],
+          fullConversations,
+          users,
+          context
+        );
         context.log(`Sending Daily Message Summaries - sent orgId: ${orgId}`);
       }
     } catch (e) {
@@ -149,6 +161,6 @@ export async function cronDailyMessageSummaries(
 
 app.timer("cronDailyMessageSummaries", {
   schedule: "0 0 5 * * *", // Every day at 5am UTC
-  runOnStartup: false,
+  runOnStartup: true,
   handler: cronDailyMessageSummaries,
 });

@@ -20,6 +20,7 @@ const getClient = () => {
 };
 
 export const sendDailySummary = async (
+  organisation_name: string,
   conversations: ConversationResponse[],
   users: User[],
   context: InvocationContext
@@ -37,6 +38,7 @@ export const sendDailySummary = async (
       {
         user_name: user.name,
         total_count: conversations.length,
+        organisation_name,
         conversations: conversations
           .filter((c) => c.messages?.length > 0)
           .map((conversation) => {
@@ -67,6 +69,7 @@ export const sendDailySummary = async (
 };
 
 export const sendWeeklySummary = async (
+  organisation_name: string,
   conversations: ConversationResponse[],
   users: User[],
   context: InvocationContext
@@ -84,6 +87,7 @@ export const sendWeeklySummary = async (
       {
         user_name: user.name,
         total_count: conversations.length,
+        organisation_name,
         conversations: conversations
           .filter((c) => c.messages?.length > 0)
           .map((conversation) => {
@@ -218,6 +222,12 @@ export const sendNegativeSentimentWarning = async (
 
   if (emails.length > 0) {
     // There is at least someone to send the notification to
+    const organisation = await db
+      .selectFrom("organisations")
+      .select(["name"])
+      .where("id", "=", conversation.organisation_id)
+      .executeTakeFirst();
+
     const oneSignal = getClient();
 
     const contactDetailsList = [
@@ -240,6 +250,7 @@ export const sendNegativeSentimentWarning = async (
       {
         id: conversation.id,
         url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        organisation_name: organisation.name,
         contact_name: conversation.contact.name,
         contact_contact_details: contact_contact_details,
         summary: conversation.summary,
@@ -295,6 +306,12 @@ export const sendContactDetailsAlert = async (
 
   if (emails.length > 0) {
     // There is at least someone to send the notification to
+    const organisation = await db
+      .selectFrom("organisations")
+      .select(["name"])
+      .where("id", "=", conversation.organisation_id)
+      .executeTakeFirst();
+
     const oneSignal = getClient();
 
     const contactDetailsList = [
@@ -317,6 +334,7 @@ export const sendContactDetailsAlert = async (
       {
         id: conversation.id,
         url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        organisation_name: organisation.name,
         channel: conversation.channel,
         contact_name: conversation.contact.name,
         contact_contact_details: contact_contact_details,
@@ -366,12 +384,18 @@ export const sendNewConversationAlert = async (
     .execute();
 
   if (data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)) {
+    const organisation = await db
+      .selectFrom("organisations")
+      .select(["name"])
+      .where("id", "=", conversation.organisation_id)
+      .executeTakeFirst();
     // Send email
     await sendNewConversationAlertEmail(
       data
         .filter((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)
         .map((d) => d.email),
       conversation,
+      organisation.name,
       context
     );
   }
@@ -392,6 +416,7 @@ export const sendNewConversationAlert = async (
 export const sendNewConversationAlertEmail = async (
   emails: string[],
   conversation: ConversationResponse,
+  organisation_name: string,
   context: InvocationContext
 ) => {
   if (emails.length > 0) {
@@ -418,6 +443,7 @@ export const sendNewConversationAlertEmail = async (
       {
         id: conversation.id,
         url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        organisation_name,
         contact_name: conversation.contact.name,
         contact_contact_details: contact_contact_details,
         message_count: conversation.messages.length,

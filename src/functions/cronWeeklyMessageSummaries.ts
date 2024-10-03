@@ -47,6 +47,13 @@ export async function cronWeeklyMessageSummaries(
     return acc;
   }, {});
 
+  const allOrgIDNameMap = (
+    await db.selectFrom("organisations").select(["id", "name"]).execute()
+  ).reduce((acc, org) => {
+    acc[org.id] = org.name;
+    return acc;
+  }, {});
+
   for (const orgId in allUsersByOrgId) {
     try {
       const users = allUsersByOrgId[orgId];
@@ -73,7 +80,12 @@ export async function cronWeeklyMessageSummaries(
         context.log(
           `Sending weekly Message Summaries - sending orgId: ${orgId}`
         );
-        await sendWeeklySummary(fullConversations, users, context);
+        await sendWeeklySummary(
+          allOrgIDNameMap[orgId],
+          fullConversations,
+          users,
+          context
+        );
         context.log(`Sending weekly Message Summaries - sent orgId: ${orgId}`);
       }
     } catch (e) {
