@@ -6,9 +6,10 @@ import {
 } from "@azure/functions";
 import { ConversationFeedbackRequest } from "../models/ConversationFeedbackRequest";
 import { authenticateRequest } from "../AuthController";
-import { db, getUser } from "../DatabaseController";
+import { db, getFullConversation, getUser } from "../DatabaseController";
 import { checkUserIsAdmin } from "../Utils";
 import { ConversationFeedbackResponse } from "../models/ConversationFeedbackResponse";
+import { sendConversationFeedbackAlert } from "../OneSignalHandler";
 
 export async function updateConversationFeedback(
   request: HttpRequest,
@@ -64,6 +65,10 @@ export async function updateConversationFeedback(
         .executeTakeFirst()),
       feedback_user_name: user.name,
     };
+
+    // Notify admin users
+    const fullConversations = await getFullConversation(conv_id);
+    await sendConversationFeedbackAlert(result, fullConversations, context);
 
     return {
       status: 200,

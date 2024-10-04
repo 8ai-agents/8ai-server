@@ -10,6 +10,7 @@ import { ConversationResponse } from "./models/ConversationResponse";
 import { db } from "./DatabaseController";
 import { format } from "timeago.js";
 import { ConversationsResponse } from "./models/ConversationsResponse";
+import { ConversationFeedbackResponse } from "./models/ConversationFeedbackResponse";
 
 const getClient = () => {
   // Create formatter (English).
@@ -357,6 +358,82 @@ export const sendContactDetailsAlert = async (
         context.log(response);
         context.log(
           `Successfully sent conversation sentiment warning for ${conversation.id}`
+        );
+      },
+      (error) => context.error(error)
+    );
+  }
+};
+
+export const sendConversationFeedbackAlert = async (
+  feedback: ConversationFeedbackResponse,
+  conversation: ConversationResponse,
+  context: InvocationContext
+) => {
+  // We fist check if any user is subscribed to contact details left warnings
+  const allSuperAdminEmails = await db
+    .selectFrom("users")
+    .leftJoin("user_roles", "user_roles.user_id", "users.id")
+    .select(["users.email"])
+    .where("users.email", "!=", "")
+    .where("user_roles.role", "=", UserRoleType.SUPER_ADMIN)
+    .execute();
+
+  if (allSuperAdminEmails.length > 0) {
+    // There is at least someone to send the notification to
+    const organisation = await db
+      .selectFrom("organisations")
+      .select(["name"])
+      .where("id", "=", conversation.organisation_id)
+      .executeTakeFirst();
+
+    const oneSignal = getClient();
+
+    const contactDetailsList = [
+      conversation.contact.email,
+      conversation.contact.phone,
+    ].filter((detail) => detail);
+
+    const contact_contact_details =
+      contactDetailsList && contactDetailsList.length > 0
+        ? contactDetailsList.join(" and ")
+        : "No contact details provided";
+
+    const email = new OneSignal.Notification();
+    email.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
+    email.include_email_tokens = allSuperAdminEmails.map((user) => user.email);
+    email.target_channel = "email";
+    email.email_subject = `${feedback.feedback_rating} conversation - feedback provided in ${organisation.name}`;
+    email.template_id = "d9796c0c-5d56-4aa2-8b60-9971e20ea724"; // 8ai Conversation Feedback
+    email.custom_data = constrainCustomDataToSize(
+      {
+        id: conversation.id,
+        url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
+        organisation_name: organisation.name,
+        channel: conversation.channel,
+        summary: conversation.summary,
+        contact_name: conversation.contact.name,
+        contact_contact_details: contact_contact_details,
+        message_count: conversation.messages.length,
+        last_message_at: format(new Date(conversation.last_message_at)),
+        feedback,
+        messages: conversation.messages
+          .sort((a, b) => a.created_at - b.created_at)
+          .map((message) => {
+            return {
+              creator: message.creator,
+              message: message.message,
+            };
+          }),
+      },
+      context
+    );
+
+    await oneSignal.createNotification(email).then(
+      (response) => {
+        context.log(response);
+        context.log(
+          `Successfully sent conversation feedback alert for ${conversation.id}`
         );
       },
       (error) => context.error(error)
