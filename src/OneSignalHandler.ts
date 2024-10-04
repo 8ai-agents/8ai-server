@@ -403,7 +403,7 @@ export const sendConversationFeedbackAlert = async (
     email.app_id = "2962b8af-f3e3-4462-989e-bc983ebaf07a";
     email.include_email_tokens = allSuperAdminEmails.map((user) => user.email);
     email.target_channel = "email";
-    email.email_subject = `${feedback.feedback_rating} conversation - feedback provided in ${organisation.name}`;
+    email.email_subject = `${feedback.feedback_user_name} tagged a conversation as ${feedback.feedback_rating} in ${organisation.name}`;
     email.template_id = "d9796c0c-5d56-4aa2-8b60-9971e20ea724"; // 8ai Conversation Feedback
     email.custom_data = constrainCustomDataToSize(
       {
