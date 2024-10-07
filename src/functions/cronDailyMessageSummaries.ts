@@ -122,6 +122,8 @@ export async function cronDailyMessageSummaries(
         "conversations.summary",
         "conversations.sentiment",
         "conversations.channel",
+        "conversations.resolution_estimation",
+        "conversations.last_summarisation_at",
       ])
       .orderBy("last_message_at", "desc")
       .execute();
@@ -138,6 +140,8 @@ export async function cronDailyMessageSummaries(
         summary: d.summary,
         sentiment: d.sentiment,
         channel: d.channel,
+        resolution_estimation: d.resolution_estimation,
+        last_summarisation_at: d.last_summarisation_at,
       };
     });
 

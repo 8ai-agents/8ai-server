@@ -11,6 +11,8 @@ export class ConversationsResponse {
   summary: string;
   sentiment: number;
   channel: ConversationChannelType;
+  resolution_estimation: number | undefined;
+  last_summarisation_at: number | undefined;
 
   constructor(
     thread_id: string,
@@ -26,5 +28,7 @@ export class ConversationsResponse {
     (this.status = ConversationStatusType.DRAFT), (this.summary = "");
     this.sentiment = 0;
     this.channel = ConversationChannelType.CHAT;
+    this.resolution_estimation = undefined;
+    this.last_summarisation_at = undefined;
   }
 }

@@ -56,6 +56,8 @@ export const getFullConversation = async (
       "conversations.summary",
       "conversations.sentiment",
       "conversations.channel",
+      "conversations.resolution_estimation",
+      "conversations.last_summarisation_at",
       "conversations.feedback_suggestion",
       "conversations.feedback_rating",
       "conversations.feedback_user_id",
@@ -83,6 +85,8 @@ export const getFullConversation = async (
       summary: conversationData.summary,
       sentiment: conversationData.sentiment,
       channel: conversationData.channel,
+      resolution_estimation: conversationData.resolution_estimation,
+      last_summarisation_at: conversationData.last_summarisation_at,
       feedback: {
         feedback_suggestion: conversationData.feedback_suggestion,
         feedback_rating: conversationData.feedback_rating,

@@ -15,4 +15,6 @@ export interface ConversationResponse {
   sentiment: number;
   channel: ConversationChannelType;
   feedback: ConversationFeedbackResponse;
+  resolution_estimation: number | undefined;
+  last_summarisation_at: number | undefined;
 }

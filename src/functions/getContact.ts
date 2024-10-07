@@ -61,6 +61,8 @@ export async function getContact(
           summary: conv.summary,
           sentiment: conv.sentiment,
           channel: conv.channel,
+          resolution_estimation: conv.resolution_estimation,
+          last_summarisation_at: conv.last_summarisation_at,
         };
       }),
     };

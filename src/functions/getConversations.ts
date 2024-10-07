@@ -49,6 +49,8 @@ export async function getConversations(
       "conversations.summary",
       "conversations.sentiment",
       "conversations.channel",
+      "conversations.resolution_estimation",
+      "conversations.last_summarisation_at",
     ])
     .execute();
 
@@ -64,6 +66,8 @@ export async function getConversations(
       summary: conv.summary,
       sentiment: conv.sentiment,
       channel: conv.channel,
+      resolution_estimation: conv.resolution_estimation,
+      last_summarisation_at: conv.last_summarisation_at,
     };
   });
 

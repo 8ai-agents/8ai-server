@@ -9,6 +9,7 @@ import {
   SentimentAnalysisSuccessResult,
   SentimentAnalysisResult,
 } from "@azure/ai-language-text";
+import { ConversationResponse } from "../models/ConversationResponse";
 import {
   sendNegativeSentimentWarning,
   sendNewConversationAlert,
@@ -18,18 +19,20 @@ export async function cronSummariseConversations(
   myTimer: Timer,
   context: InvocationContext
 ): Promise<void> {
-  context.log("Summarising Conversations");
-
-  const tenMinutesAgo: number = Date.now() - 1000 * 60 * 10; // More than 10 minutes ago
-  const twentyMinutesAgo: number = Date.now() - 1000 * 60 * 20; // More than 10 minutes ago
   const organisationsAssistants = await db
     .selectFrom("organisations")
     .select(["id", "assistant_id"])
     .execute();
-  const conversations = await db
+  const allConversationIDs = await db
     .selectFrom("conversations")
+    .select(["id"])
     .where("status", "!=", ConversationStatusType.DRAFT)
-    .select(["id", "last_message_at", "summary"])
+    .where((w) =>
+      w.or([
+        w("last_summarisation_at", "is", null),
+        w("last_summarisation_at", "<", w.ref("last_message_at")),
+      ])
+    )
     .execute();
 
   const openai = new OpenAI({
@@ -40,141 +43,209 @@ export async function cronSummariseConversations(
     new AzureKeyCredential(process.env.AZURE_CONGNITIVE_SERVICE_KEY)
   );
 
-  for (const { id: conv_id } of conversations.filter(
-    (c) =>
-      !c.summary ||
-      (c.last_message_at <= tenMinutesAgo &&
-        c.last_message_at >= twentyMinutesAgo)
-  )) {
-    context.log(`Summarising Conversation ${conv_id}`);
-    const fullConversation = await getFullConversation(conv_id);
-
-    let updatedSummary = "";
-    let updatedSentiment = 0;
+  context.log(`Summarising ${allConversationIDs.length} Conversations`);
+  for (const { id: conv_id } of allConversationIDs) {
     try {
-      // Summarise
+      context.log(`Summarising Conversation ${conv_id}`);
+      const fullConversation = await getFullConversation(conv_id);
       const organisation = organisationsAssistants.find(
         (o) => o.id === fullConversation.organisation_id
       );
 
-      updatedSummary = await summariseConversation(
-        openai,
-        conv_id,
-        organisation?.assistant_id
-      );
-    } catch (error: unknown) {
-      const err = error as Error;
-      context.error(
-        `Summarising Conversation Error ${conv_id} - ${JSON.stringify(
-          err.message
-        )}`
-      );
-      updatedSummary = "Can't summarise this conversation at the moment.";
-    }
-    fullConversation.summary = updatedSummary;
+      const result = await Promise.all([
+        processSummarisation(
+          conv_id,
+          organisation.assistant_id,
+          openai,
+          context
+        ),
+        processSentiment(fullConversation, sentimentClient, context),
+      ]);
 
-    try {
-      // Sentiment
-      const messages = await db
-        .selectFrom("messages")
-        .where("conversation_id", "=", conv_id)
-        .where("creator", "=", MessageCreatorType.CONTACT)
-        .select(["message", "created_at"])
-        .orderBy("created_at", "desc")
-        .limit(10)
+      fullConversation.summary = result[0];
+      fullConversation.sentiment = result[1];
+      // Can't do two thread runs at the same time
+      fullConversation.resolution_estimation = await processResultionAnalysis(
+        conv_id,
+        organisation.assistant_id,
+        openai,
+        context
+      );
+
+      await db
+        .updateTable("conversations")
+        .set({
+          summary: fullConversation.summary,
+          sentiment: fullConversation.sentiment,
+          resolution_estimation: fullConversation.resolution_estimation,
+          last_summarisation_at: Date.now(),
+        })
+        .where("id", "=", conv_id)
         .execute();
 
-      const results: SentimentAnalysisResult[] = await sentimentClient.analyze(
-        "SentimentAnalysis",
-        messages.map((m) => m.message)
-      );
+      await sendNewConversationAlert(fullConversation, context);
 
-      const successResults = results.filter(
-        (r) => r.error === undefined
-      ) as SentimentAnalysisSuccessResult[];
-
-      // Int where negative means more is negative than positive, prioritises negative sentiment and more recent messages
-      updatedSentiment = successResults
-        .map(
-          (r, i) =>
-            (r.confidenceScores.positive + r.confidenceScores.negative * -2) *
-            (4 / (i + 4))
-        )
-        .reduce((a, b) => a + b, 0);
-
-      context.log(
-        `NPS Sentiment for Conversation ${conv_id}: ${updatedSentiment}`
-      );
-
-      if (
-        updatedSentiment < -1.5 &&
-        (fullConversation.sentiment > -1.5 || !fullConversation.sentiment)
-      ) {
-        // Send warning
-        context.log(
-          `Sending Negative Sentiment Warning for Conversation ${conv_id}`
-        );
-        fullConversation.sentiment = updatedSentiment;
-        await sendNegativeSentimentWarning(fullConversation, context);
-      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error: unknown) {
       context.error(
-        `Error getting NPS Sentiment for Conversation ${conv_id} - ${JSON.stringify(
+        `Error Summarising Conversation ${conv_id} - ${JSON.stringify(
           (error as Error).message
         )}`
       );
     }
-    fullConversation.sentiment = updatedSentiment;
-
-    await db
-      .updateTable("conversations")
-      .set({ summary: updatedSummary, sentiment: updatedSentiment })
-      .where("id", "=", conv_id)
-      .execute();
-
-    await sendNewConversationAlert(fullConversation, context);
-
-    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 }
 
-const summariseConversation = async (
+const processSummarisation = async (
+  conv_id: string,
+  assistant_id: string,
   openai: OpenAI,
-  conversation_id: string,
-  assistant_id: string
-) => {
-  const thread_id = conversation_id.replace("conv_", "thread_");
+  context: InvocationContext
+): Promise<string> => {
+  try {
+    // Summarise
+    const thread_id = conv_id.replace("conv_", "thread_");
 
-  await openai.beta.threads.messages.create(thread_id, {
-    role: "assistant",
-    content:
-      "Please summarise in one line the conversation so far, what is it about, and if the customer's request been resolved",
-  });
+    await openai.beta.threads.messages.create(thread_id, {
+      role: "assistant",
+      content:
+        "Please summarise in one line the conversation so far, what is it about, and if the customer's request been resolved",
+    });
 
-  let run = await openai.beta.threads.runs.create(thread_id, {
-    assistant_id: assistant_id,
-    instructions: "",
-  });
-
-  while (["queued", "in_progress", "cancelling"].includes(run.status)) {
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 1 second
-    run = await openai.beta.threads.runs.retrieve(run.thread_id, run.id);
+    const run = await openai.beta.threads.runs.createAndPoll(
+      thread_id,
+      {
+        assistant_id,
+      },
+      { pollIntervalMs: 500 }
+    );
 
     if (run.status === "completed") {
-      const messagesResponse = await openai.beta.threads.messages.list(
-        run.thread_id
-      );
-      const content = messagesResponse.data[0].content.find(
+      const messages = await openai.beta.threads.messages.list(run.thread_id, {
+        limit: 1,
+      });
+      const content = messages.data[0].content.find(
         (c) => c.type === "text"
       ) as TextContentBlock;
       return content.text.value;
-
-      // Save summary to database
-    } else if (run.status === "failed") {
-      throw `Summarising Conversation Failed ${conversation_id} - ${JSON.stringify(
-        run.last_error
-      )}`;
+    } else {
+      context.error(run.status);
+      if (run.last_error) {
+        context.error(
+          `Summarise content - last error: ${run.last_error.code}: ${run.last_error.message}`
+        );
+      }
+      return "Can't summarise this conversation at the moment.";
     }
+  } catch (error: unknown) {
+    const err = error as Error;
+    context.error(
+      `Summarising Conversation Error ${conv_id} - ${JSON.stringify(
+        err.message
+      )}`
+    );
+    return "Can't summarise this conversation at the moment.";
+  }
+};
+
+const processSentiment = async (
+  conversation: ConversationResponse,
+  sentimentClient: TextAnalysisClient,
+  context: InvocationContext
+): Promise<number | undefined> => {
+  try {
+    // Messages ordered by most recent desc
+    const orderedMessages = conversation.messages
+      .filter((m) => m.creator === MessageCreatorType.CONTACT)
+      .sort((a, b) => b.created_at - b.created_at)
+      .slice(0, 10);
+
+    const results: SentimentAnalysisResult[] = await sentimentClient.analyze(
+      "SentimentAnalysis",
+      orderedMessages.map((m) => m.message)
+    );
+
+    const successResults = results.filter(
+      (r) => r.error === undefined
+    ) as SentimentAnalysisSuccessResult[];
+
+    // Int where negative means more is negative than positive, prioritises negative sentiment and more recent messages
+    const result = successResults
+      .map(
+        (r, i) =>
+          (r.confidenceScores.positive + r.confidenceScores.negative * -2) *
+          (4 / (i + 4))
+      )
+      .reduce((a, b) => a + b, 0);
+
+    if (
+      result < -1.5 &&
+      (conversation.sentiment > -1.5 || !conversation.sentiment)
+    ) {
+      // Send warning
+      context.log(
+        `Sending Negative Sentiment Warning for Conversation ${conversation.id}`
+      );
+      conversation.sentiment = result;
+      await sendNegativeSentimentWarning(conversation, context);
+    }
+    return result;
+  } catch (error: unknown) {
+    context.error(
+      `Error getting NPS Sentiment for Conversation ${
+        conversation.id
+      } - ${JSON.stringify((error as Error).message)}`
+    );
+    return undefined;
+  }
+};
+
+const processResultionAnalysis = async (
+  conv_id: string,
+  assistant_id: string,
+  openai: OpenAI,
+  context: InvocationContext
+): Promise<number | undefined> => {
+  try {
+    const thread_id = conv_id.replace("conv_", "thread_");
+
+    await openai.beta.threads.messages.create(thread_id, {
+      role: "assistant",
+      content:
+        "Please rate the resolution of the customer's request as an integer, where 1 is not resolved at all and 100 is fully and completely resolved. Return only a single integer in your response",
+    });
+
+    const run = await openai.beta.threads.runs.createAndPoll(
+      thread_id,
+      {
+        assistant_id,
+      },
+      { pollIntervalMs: 500 }
+    );
+
+    if (run.status === "completed") {
+      const messages = await openai.beta.threads.messages.list(run.thread_id, {
+        limit: 1,
+      });
+      const content = messages.data[0].content.find(
+        (c) => c.type === "text"
+      ) as TextContentBlock;
+      return parseInt(content.text.value);
+    } else {
+      context.error(run.status);
+      if (run.last_error) {
+        context.error(
+          `Resolution analysis - last error: ${run.last_error.code}: ${run.last_error.message}`
+        );
+      }
+      return undefined;
+    }
+  } catch (error: unknown) {
+    const err = error as Error;
+    context.error(
+      `Resolution analysis Error ${conv_id} - ${JSON.stringify(err.message)}`
+    );
+    return undefined;
   }
 };
 

@@ -43,6 +43,8 @@ export interface ConversationTable {
   feedback_suggestion: string;
   feedback_created_at: number;
   feedback_user_id: string;
+  resolution_estimation: number | undefined;
+  last_summarisation_at: number | undefined;
 }
 
 export enum FeedbackRatingType {
