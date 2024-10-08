@@ -355,6 +355,10 @@ export const sendContactDetailsAlert = async (
         contact_contact_details: contact_contact_details,
         message_count: conversation.messages.length,
         last_message_at: format(new Date(conversation.last_message_at)),
+        sentiment: convertSentimentToString(conversation.sentiment),
+        resolution_estimate: convertResolutionToString(
+          conversation.resolution_estimation
+        ),
         messages: conversation.messages
           .sort((a, b) => a.created_at - b.created_at)
           .map((message) => {
@@ -430,6 +434,10 @@ export const sendConversationFeedbackAlert = async (
         contact_contact_details: contact_contact_details,
         message_count: conversation.messages.length,
         last_message_at: format(new Date(conversation.last_message_at)),
+        sentiment: convertSentimentToString(conversation.sentiment),
+        resolution_estimate: convertResolutionToString(
+          conversation.resolution_estimation
+        ),
         feedback,
         messages: conversation.messages
           .sort((a, b) => a.created_at - b.created_at)
@@ -539,6 +547,10 @@ export const sendNewConversationAlertEmail = async (
         contact_contact_details: contact_contact_details,
         message_count: conversation.messages.length,
         last_message_at: format(new Date(conversation.last_message_at)),
+        sentiment: convertSentimentToString(conversation.sentiment),
+        resolution_estimate: convertResolutionToString(
+          conversation.resolution_estimation
+        ),
         messages: conversation.messages
           .sort((a, b) => a.created_at - b.created_at)
           .map((message) => {
