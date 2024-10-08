@@ -1,12 +1,12 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
-import { db } from "../DatabaseController";
+import { db, getFullConversation } from "../DatabaseController";
 import {
   ConversationStatusType,
   NotificationSettingsType,
-  //UserRoleType,
+  UserRoleType,
 } from "../models/Database";
 import {
-  //sendDailySummary,
+  sendDailySummary,
   sendDailySummaryToSuperAdmins,
 } from "../OneSignalHandler";
 import { ConversationsResponse } from "../models/ConversationsResponse";
@@ -42,7 +42,7 @@ export async function cronDailyMessageSummaries(
     )
     .where("notification_settings.enabled", "=", true)
     .execute();
-  /*
+
   const allUsersByOrgId = allAdmins
     .filter((u) => u.role != UserRoleType.SUPER_ADMIN) // We don't send to super admins, they get a global update later
     .reduce((acc, user) => {
@@ -60,8 +60,6 @@ export async function cronDailyMessageSummaries(
     acc[org.id] = org.name;
     return acc;
   }, {});
-
-
 
   for (const orgId in allUsersByOrgId) {
     try {
@@ -103,8 +101,6 @@ export async function cronDailyMessageSummaries(
       );
     }
   }
-
-  */
 
   // Now sending a summary to all super admins
   try {
@@ -169,6 +165,6 @@ export async function cronDailyMessageSummaries(
 
 app.timer("cronDailyMessageSummaries", {
   schedule: "0 0 5 * * *", // Every day at 5am UTC
-  runOnStartup: true,
+  runOnStartup: false,
   handler: cronDailyMessageSummaries,
 });
