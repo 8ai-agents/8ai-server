@@ -614,18 +614,18 @@ const constrainCustomDataToSize = (
   context: InvocationContext
 ) => {
   // The payload may include up to 10 kilobytes for email messages.
-  let result = customData;
+  let result = JSON.parse(JSON.stringify(customData));
   if (getPayloadSize(result) >= 10 * 1024) {
     context.warn("Payload is too large, attempting to reduce");
     // Result is too big!
-    result = customData;
     if (result.organisations) {
-      result.organisations = customData.organisations.map(
-        (org: any) =>
-          (org.conversations = org.conversations.map((conversation: any) => {
-            return { ...conversation, summary: "" };
-          }))
-      );
+      result.organisations = customData.organisations.map((org: any) => {
+        const orgResult = JSON.parse(JSON.stringify(org));
+        orgResult.conversations = org.conversations.map((conversation: any) => {
+          return { ...conversation, summary: "" };
+        });
+        return orgResult;
+      });
     }
     if (result.conversations) {
       result.conversations = customData.conversations.map(

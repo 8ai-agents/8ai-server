@@ -31,9 +31,9 @@ export const convertSentimentToString = (sentiment: number) => {
     ? "Very Positive"
     : sentiment > 0
     ? "Positive"
-    : sentiment < 2
+    : sentiment < -2
     ? "Very Negative"
-    : sentiment < 0.5
+    : sentiment < -0.5
     ? "Negative"
     : "Neutral";
 };
