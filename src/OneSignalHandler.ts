@@ -11,6 +11,7 @@ import { db } from "./DatabaseController";
 import { format } from "timeago.js";
 import { ConversationsResponse } from "./models/ConversationsResponse";
 import { ConversationFeedbackResponse } from "./models/ConversationFeedbackResponse";
+import { convertResolutionToString, convertSentimentToString } from "./Utils";
 
 const getClient = () => {
   // Create formatter (English).
@@ -50,7 +51,10 @@ export const sendDailySummary = async (
               email: conversation.contact.email,
               phone: conversation.contact.phone,
               summary: conversation.summary,
-              sentiment: conversation.sentiment,
+              sentiment: convertSentimentToString(conversation.sentiment),
+              resolution_estimate: convertResolutionToString(
+                conversation.resolution_estimation
+              ),
               message_count: conversation.messages.length,
               last_message_at: format(new Date(conversation.last_message_at)),
             };
@@ -99,7 +103,10 @@ export const sendWeeklySummary = async (
               email: conversation.contact.email,
               phone: conversation.contact.phone,
               summary: conversation.summary,
-              sentiment: conversation.sentiment,
+              sentiment: convertSentimentToString(conversation.sentiment),
+              resolution_estimate: convertResolutionToString(
+                conversation.resolution_estimation
+              ),
               message_count: conversation.messages.length,
               last_message_at: format(new Date(conversation.last_message_at)),
             };
@@ -143,7 +150,8 @@ export const sendDailySummaryToSuperAdmins = async (
       url: string;
       name: string;
       summary: string;
-      sentiment: number;
+      sentiment: string;
+      resolution_estimate: string;
       last_message_at: string;
     }[];
   }[] = [];
@@ -163,7 +171,10 @@ export const sendDailySummaryToSuperAdmins = async (
             url: `https://app.8ai.co.nz/conversations/${conversation.id}`,
             name: conversation.contact_name,
             summary: conversation.summary,
-            sentiment: conversation.sentiment,
+            sentiment: convertSentimentToString(conversation.sentiment),
+            resolution_estimate: convertResolutionToString(
+              conversation.resolution_estimation
+            ),
             last_message_at: format(new Date(conversation.last_message_at)),
           };
         }),
@@ -255,7 +266,10 @@ export const sendNegativeSentimentWarning = async (
         contact_name: conversation.contact.name,
         contact_contact_details: contact_contact_details,
         summary: conversation.summary,
-        sentiment: conversation.sentiment,
+        sentiment: convertSentimentToString(conversation.sentiment),
+        resolution_estimate: convertResolutionToString(
+          conversation.resolution_estimation
+        ),
         message_count: conversation.messages.length,
         last_message_at: format(new Date(conversation.last_message_at)),
         messages: conversation.messages

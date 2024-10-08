@@ -26,5 +26,28 @@ export const checkUserIsAdmin = async (
   }
 };
 
+export const convertSentimentToString = (sentiment: number) => {
+  return sentiment > 2
+    ? "Very Positive"
+    : sentiment > 0
+    ? "Positive"
+    : sentiment < 2
+    ? "Very Negative"
+    : sentiment < 0.5
+    ? "Negative"
+    : "Neutral";
+};
+
+export const convertResolutionToString = (resolution: number) => {
+  if (!resolution) return "";
+  return resolution >= 100
+    ? "Completely Resolved"
+    : resolution >= 70
+    ? "Resolved"
+    : resolution >= 30
+    ? "Unresolved"
+    : "Not at all resolved";
+};
+
 export const createID = (type: "cont" | "conv" | "msg" | "org" | "user") =>
   `${type}_${randomBytes(16).toString("hex")}`;
