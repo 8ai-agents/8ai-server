@@ -1,4 +1,4 @@
-import OpenAI, { toFile } from "openai";
+import { toFile, AzureOpenAI } from "openai";
 import { MessageRequest } from "./models/MessageRequest";
 import {
   MessageResponse,
@@ -11,11 +11,23 @@ import { Message } from "openai/resources/beta/threads/messages";
 import { AssistantTool } from "openai/resources/beta/assistants";
 import { Run } from "openai/resources/beta/threads/runs/runs";
 import { sendContactDetailsAlert } from "./OneSignalHandler";
+import {
+  DefaultAzureCredential,
+  getBearerTokenProvider,
+} from "@azure/identity";
+
+export const createAzureOpenAIClient = (): AzureOpenAI => {
+  const credential = new DefaultAzureCredential();
+  const scope = "https://cognitiveservices.azure.com/.default";
+  const azureADTokenProvider = getBearerTokenProvider(credential, scope);
+  const deployment = "8ai-azure-openai";
+  const apiVersion = "2024-09-01-preview";
+  const options = { azureADTokenProvider, deployment, apiVersion };
+  return new AzureOpenAI(options);
+};
 
 export const createConversationForOpenAI = async (): Promise<string> => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   const thread = await openai.beta.threads.create();
   return thread.id;
 };
@@ -27,9 +39,7 @@ export const handleMessageForOpenAI = async (
   contact_id: string,
   context: InvocationContext
 ): Promise<MessageResponse[]> => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   const thread_id = messageRequest.conversation_id.replace("conv_", "thread_");
   await openai.beta.threads.messages.create(thread_id, {
     role: "user",
@@ -61,9 +71,7 @@ export const handleSingleMessageForOpenAI = async (
   message: string,
   context: InvocationContext
 ): Promise<{ thread_id: string; response: MessageResponse[] }> => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   const run = await openai.beta.threads.createAndRunPoll(
     {
       assistant_id,
@@ -169,9 +177,7 @@ export const createAssistant = async (
   filedata: string,
   system_prompt: string
 ) => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
-  });
+  const openai = createAzureOpenAIClient();
 
   try {
     const myAssistant = await openai.beta.assistants.create({
@@ -200,9 +206,7 @@ export const updateAssistantFile = async (
   assistant_id: string,
   filedata: string
 ) => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   let jsonData: {
     name: string;
     url: string;
