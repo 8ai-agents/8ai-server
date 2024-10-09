@@ -323,7 +323,7 @@ type SaveContactDetailsPayload = {
 export const handleThreadRun = async (
   thread_id: string,
   run: Run,
-  openai: OpenAI,
+  openai: AzureOpenAI,
   context: InvocationContext,
   conversation_id: string = "",
   contact_id: string | undefined
