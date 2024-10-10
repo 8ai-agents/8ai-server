@@ -36,11 +36,11 @@ export async function cronSummariseConversations(
     .execute();
 
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
   const sentimentClient = new TextAnalysisClient(
     "https://8ai-conversation-summarisation.cognitiveservices.azure.com/",
-    new AzureKeyCredential(process.env.AZURE_CONGNITIVE_SERVICE_KEY)
+    new AzureKeyCredential(process.env.AZURE_COGNITIVE_SERVICE_KEY)
   );
 
   context.log(`Summarising ${allConversationIDs.length} Conversations`);
