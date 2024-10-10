@@ -6,14 +6,25 @@ import {
 } from "@azure/functions";
 import { MessageRequest } from "../models/MessageRequest";
 import { MessageResponse } from "../models/MessageResponse";
-import { MessageCreatorType, NewMessage } from "../models/Database";
+import {
+  ConversationChannelType,
+  MessageCreatorType,
+  NewContact,
+  NewConversation,
+  NewMessage,
+} from "../models/Database";
 import {
   db,
   saveMessageResponsesToDatabase,
   saveMessagesToDatabase,
 } from "../DatabaseController";
-import { handleMessageForOpenAI } from "../OpenAIHandler";
+import {
+  createConversationForOpenAI,
+  handleMessageForOpenAI,
+} from "../OpenAIHandler";
 import { authenticateRequest } from "../AuthController";
+import { ConversationsResponse } from "../models/ConversationsResponse";
+import { ContactResponse } from "../models/ContactResponse";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -22,6 +33,7 @@ export async function sendMessage(
   try {
     const messageRequest = (await request.json()) as MessageRequest;
     let user_id: string | undefined = undefined;
+    let isNewConversation = false;
     if (messageRequest.creator === MessageCreatorType.USER) {
       // We need to retrieve userID from token
       const email = await authenticateRequest(request);
@@ -36,10 +48,65 @@ export async function sendMessage(
         }
       }
     }
-    context.log(
-      `Processing message for conversation ${messageRequest.conversation_id}`
-    );
-    const { interrupted, assistant_id, contact_id, system_prompt } = await db
+
+    // Check if new conversation or existing?
+    if (!messageRequest.conversation_id) {
+      if (!messageRequest.organisation_id) {
+        return {
+          status: 400,
+          jsonBody: {
+            error:
+              "Must supply a valid organisation ID when sending a new message for a new conversation",
+          },
+        };
+      }
+      context.log(`Processing message for new conversation`);
+
+      const threadID = await createConversationForOpenAI();
+      const newContact = new ContactResponse();
+      const newConversation = new ConversationsResponse(
+        threadID,
+        newContact.name,
+        messageRequest.organisation_id
+      );
+      messageRequest.conversation_id = newConversation.id;
+
+      // Save to db
+      await db
+        .insertInto("contacts")
+        .values({
+          ...newContact,
+          organisation_id: messageRequest.organisation_id,
+        } as NewContact)
+        .execute();
+      const converationToSave: NewConversation = {
+        id: newConversation.id,
+        organisation_id: messageRequest.organisation_id,
+        contact_id: newContact.id,
+        created_at: newConversation.created_at,
+        last_message_at: newConversation.last_message_at,
+        status: newConversation.status,
+        summary: newConversation.summary,
+        sentiment: 0,
+        interrupted: false,
+        channel: ConversationChannelType.CHAT,
+      };
+      await db.insertInto("conversations").values(converationToSave).execute();
+      isNewConversation = true;
+    } else {
+      context.log(
+        `Processing message for conversation ${messageRequest.conversation_id}`
+      );
+    }
+
+    // Proceed with processing the message
+    const {
+      interrupted,
+      assistant_id,
+      contact_id,
+      system_prompt,
+      organisation_id,
+    } = await db
       .selectFrom("conversations")
       .innerJoin(
         "organisations",
@@ -49,12 +116,22 @@ export async function sendMessage(
       .where("conversations.id", "=", messageRequest.conversation_id)
       .select([
         "conversations.id",
+        "conversations.organisation_id",
         "conversations.interrupted",
         "organisations.assistant_id",
         "conversations.contact_id",
         "organisations.system_prompt",
       ])
       .executeTakeFirst();
+
+    if (organisation_id !== messageRequest.organisation_id) {
+      return {
+        status: 400,
+        jsonBody: {
+          error: "Conversation does not belong to the organisation",
+        },
+      };
+    }
 
     const newMessageRequest: NewMessage = {
       ...new MessageResponse(
@@ -89,6 +166,10 @@ export async function sendMessage(
 
       // Save message to database
       await saveMessageResponsesToDatabase(responses, false);
+
+      if (isNewConversation) {
+        // TODO Send new conversation alert
+      }
 
       return {
         status: 200,
