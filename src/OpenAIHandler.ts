@@ -165,7 +165,6 @@ export const processOpenAIMessage = async (
 export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
-  organisation_description: string,
   filedata: string,
   system_prompt: string
 ) => {
