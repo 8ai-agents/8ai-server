@@ -41,6 +41,7 @@ export async function createOrganisation(
       fine_tuning_filename: organisationRequest.fine_tuning_filename,
       default_questions: organisationRequest.default_questions || [],
       system_prompt: organisationRequest.system_prompt,
+      auto_close_conversations: false,
     };
     await db
       .insertInto("organisations")

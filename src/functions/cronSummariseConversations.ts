@@ -21,7 +21,7 @@ export async function cronSummariseConversations(
 ): Promise<void> {
   const organisationsAssistants = await db
     .selectFrom("organisations")
-    .select(["id", "assistant_id"])
+    .select(["id", "assistant_id", "auto_close_conversations"])
     .execute();
   const allConversationIDs = await db
     .selectFrom("conversations")
@@ -79,6 +79,12 @@ export async function cronSummariseConversations(
           sentiment: fullConversation.sentiment,
           resolution_estimation: fullConversation.resolution_estimation,
           last_summarisation_at: Date.now(),
+          status:
+            organisation.auto_close_conversations &&
+            fullConversation.resolution_estimation &&
+            fullConversation.resolution_estimation >= 70
+              ? ConversationStatusType.CLOSED
+              : fullConversation.status,
         })
         .where("id", "=", conv_id)
         .execute();
@@ -251,6 +257,6 @@ const processResultionAnalysis = async (
 
 app.timer("cronSummariseConversations", {
   schedule: "0 */10 * * * *", // Every 10 minutes
-  runOnStartup: false,
+  runOnStartup: true,
   handler: cronSummariseConversations,
 });
