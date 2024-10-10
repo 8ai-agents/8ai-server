@@ -40,6 +40,13 @@ jobs:
           npm run test --if-present
           popd
 
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_298C9D5DB49D45FC8ED5FD5218985F0E }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_33B161E8606E4C2CAF268968F2B2BF55 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_BA66A64B54574B9AA30FC7E24EBB2E7F }}
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
