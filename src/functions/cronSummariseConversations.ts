@@ -257,6 +257,6 @@ const processResultionAnalysis = async (
 
 app.timer("cronSummariseConversations", {
   schedule: "0 */10 * * * *", // Every 10 minutes
-  runOnStartup: true,
+  runOnStartup: false,
   handler: cronSummariseConversations,
 });
