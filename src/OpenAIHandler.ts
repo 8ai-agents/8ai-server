@@ -14,7 +14,7 @@ import { sendContactDetailsAlert } from "./OneSignalHandler";
 
 export const createConversationForOpenAI = async (): Promise<string> => {
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
   const thread = await openai.beta.threads.create();
   return thread.id;
@@ -28,7 +28,7 @@ export const handleMessageForOpenAI = async (
   context: InvocationContext
 ): Promise<MessageResponse[]> => {
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
   const thread_id = messageRequest.conversation_id.replace("conv_", "thread_");
   await openai.beta.threads.messages.create(thread_id, {
@@ -62,7 +62,7 @@ export const handleSingleMessageForOpenAI = async (
   context: InvocationContext
 ): Promise<{ thread_id: string; response: MessageResponse[] }> => {
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
   const run = await openai.beta.threads.createAndRunPoll(
     {
@@ -169,7 +169,7 @@ export const createAssistant = async (
   system_prompt: string
 ) => {
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
 
   try {
@@ -200,7 +200,7 @@ export const updateAssistantFile = async (
   filedata: string
 ) => {
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
   let jsonData: {
     name: string;

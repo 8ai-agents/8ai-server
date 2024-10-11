@@ -21,7 +21,7 @@ export async function cronSummariseConversations(
 ): Promise<void> {
   const organisationsAssistants = await db
     .selectFrom("organisations")
-    .select(["id", "assistant_id"])
+    .select(["id", "assistant_id", "auto_close_conversations"])
     .execute();
   const allConversationIDs = await db
     .selectFrom("conversations")
@@ -36,11 +36,11 @@ export async function cronSummariseConversations(
     .execute();
 
   const openai = new OpenAI({
-    apiKey: process.env.OPEN_API_KEY,
+    apiKey: process.env.OPENAI_KEY,
   });
   const sentimentClient = new TextAnalysisClient(
     "https://8ai-conversation-summarisation.cognitiveservices.azure.com/",
-    new AzureKeyCredential(process.env.AZURE_CONGNITIVE_SERVICE_KEY)
+    new AzureKeyCredential(process.env.AZURE_COGNITIVE_SERVICE_KEY)
   );
 
   context.log(`Summarising ${allConversationIDs.length} Conversations`);
@@ -79,6 +79,12 @@ export async function cronSummariseConversations(
           sentiment: fullConversation.sentiment,
           resolution_estimation: fullConversation.resolution_estimation,
           last_summarisation_at: Date.now(),
+          status:
+            organisation.auto_close_conversations &&
+            fullConversation.resolution_estimation &&
+            fullConversation.resolution_estimation >= 70
+              ? ConversationStatusType.CLOSED
+              : fullConversation.status,
         })
         .where("id", "=", conv_id)
         .execute();
