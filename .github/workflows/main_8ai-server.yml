@@ -72,20 +72,24 @@ jobs:
           slot-name: 'staging'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
 
-      # Wait for 1 minute for the app to start
-      - name: Wait for 1 minute
-        run: sleep 60
+      # Wait for 15 minute for the app to start
+      - name: Wait for 15 seconds
+        run: sleep 15
 
       # Perform health check on the staging slot
       - name: Health check on Staging Slot
-        run: |
-          HEALTH_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}-staging.azurewebsites.net/healthcheck"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Health check failed with status $HTTP_STATUS"
-            exit 1
-          fi
-          echo "Health check passed with status $HTTP_STATUS"
+        uses: jtalk/url-health-check-action@v4
+        with:
+          # Check the following URLs one by one sequentially
+          url: https://${{ env.AZURE_FUNCTIONAPP_NAME }}-staging.azurewebsites.net/health
+          # Follow redirects, or just report success on 3xx status codes
+          follow-redirect: false # Optional, defaults to "false"
+          # Fail this action after this many failed attempts
+          max-attempts: 3 # Optional, defaults to 1
+          # Delay between retries
+          retry-delay: 10s # Optional, only applicable to max-attempts > 1
+          # Retry all errors, including 404. This option might trigger curl upgrade.
+          retry-all: false # Optional, defaults to "false"
 
       # Swap Staging and Production slots
       - name: Swap Slots
