@@ -68,7 +68,7 @@ export async function sendMessageSlackSlash(
       // Publish message to EventGrid
       const topicEndpoint =
         "https://8ai-messaging-topic.australiaeast-1.eventgrid.azure.net/api/events";
-      const topicKey = process.env.MESSAGE_PROCESSOR_TOPIC_KEY;
+      const topicKey = process.env.AZURE_MESSAGE_PROCESSOR_TOPIC_KEY;
 
       const client = new EventGridPublisherClient(
         topicEndpoint,
