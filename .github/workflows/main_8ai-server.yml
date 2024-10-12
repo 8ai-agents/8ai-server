@@ -90,12 +90,4 @@ jobs:
           retry-delay: 10s # Optional, only applicable to max-attempts > 1
           # Retry all errors, including 404. This option might trigger curl upgrade.
           retry-all: false # Optional, defaults to "false"
-
-      # Swap Staging and Production slots
-      - name: Swap Slots
-        run: |
-          az functionapp deployment slot swap \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --slot staging
           
