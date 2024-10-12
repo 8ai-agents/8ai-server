@@ -12,6 +12,8 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: '20.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  AZURE_FUNCTIONAPP_NAME: '8ai-server' # set this to your function app name
+  AZURE_RESOURCE_GROUP: '8ai'
 
 jobs:
   build:
@@ -67,6 +69,29 @@ jobs:
         id: fa
         with:
           app-name: '8ai-server'
-          slot-name: 'Production'
+          slot-name: 'staging'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      # Wait for 1 minute for the app to start
+      - name: Wait for 1 minute
+        run: sleep 60
+
+      # Perform health check on the staging slot
+      - name: Health check on Staging Slot
+        run: |
+          HEALTH_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}-staging.azurewebsites.net/healthcheck"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Health check failed with status $HTTP_STATUS"
+            exit 1
+          fi
+          echo "Health check passed with status $HTTP_STATUS"
+
+      # Swap Staging and Production slots
+      - name: Swap Slots
+        run: |
+          az functionapp deployment slot swap \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
+            --slot staging
           
