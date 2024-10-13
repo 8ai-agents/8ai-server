@@ -163,6 +163,7 @@ const processSlackBotMessage = async (
         // We are continuing a conversation
         const openAIResponseData = await handleMessageForOpenAI(
           {
+            organisation_id: data.organisation_id,
             conversation_id: existingConversationID,
             message: data.message.toString(),
             creator: MessageCreatorType.CONTACT,

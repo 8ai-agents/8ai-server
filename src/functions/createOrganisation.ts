@@ -41,6 +41,7 @@ export async function createOrganisation(
       fine_tuning_filename: organisationRequest.fine_tuning_filename,
       default_questions: organisationRequest.default_questions || [],
       system_prompt: organisationRequest.system_prompt,
+      auto_close_conversations: false,
     };
     await db
       .insertInto("organisations")
@@ -52,6 +53,7 @@ export async function createOrganisation(
       .selectFrom("user_roles")
       .select(["user_id"])
       .where("role", "=", UserRoleType.SUPER_ADMIN)
+      .distinct()
       .execute();
     await db
       .insertInto("user_roles")
@@ -74,7 +76,6 @@ export async function createOrganisation(
         const assistant_id = await createAssistant(
           organisationToSave.id,
           organisationRequest.name,
-          organisationRequest.description,
           organisationRequest.fine_tuning_data,
           organisationRequest.system_prompt
         );

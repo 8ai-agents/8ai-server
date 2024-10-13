@@ -5,6 +5,5 @@
   "azureFunctions.projectRuntime": "~4",
   "debug.internalConsoleOptions": "neverOpen",
   "azureFunctions.projectLanguageModel": 4,
-  "azureFunctions.preDeployTask": "npm prune (functions)",
-  "git.autofetch": true
+  "azureFunctions.preDeployTask": "npm prune (functions)"
 }

@@ -133,6 +133,7 @@ export interface OrganisationTable {
   fine_tuning_filename: string;
   default_questions: string[];
   system_prompt: string;
+  auto_close_conversations: boolean;
 }
 
 export type Organisation = Selectable<OrganisationTable>;
