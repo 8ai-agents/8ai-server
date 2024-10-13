@@ -56,6 +56,7 @@ export async function updateOrganisation(
         organisationRequest.fine_tuning_filename;
       await updateAssistantFile(
         organisationRequest.id,
+        organisationRequest.name,
         organisationRequest.assistant_id,
         organisationRequest.fine_tuning_data
       );

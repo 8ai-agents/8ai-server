@@ -1,6 +1,5 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { db, getFullConversation } from "../DatabaseController";
-import OpenAI from "openai";
 import { ConversationStatusType, MessageCreatorType } from "../models/Database";
 import { TextContentBlock } from "openai/resources/beta/threads/messages";
 import {
@@ -14,6 +13,8 @@ import {
   sendNegativeSentimentWarning,
   sendNewConversationAlert,
 } from "../OneSignalHandler";
+import { createAzureOpenAIClient } from "../OpenAIHandler";
+import { AzureOpenAI } from "openai";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
@@ -35,9 +36,7 @@ export async function cronSummariseConversations(
     )
     .execute();
 
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   const sentimentClient = new TextAnalysisClient(
     "https://8ai-conversation-summarisation.cognitiveservices.azure.com/",
     new AzureKeyCredential(process.env.AZURE_COGNITIVE_SERVICE_KEY)
@@ -105,7 +104,7 @@ export async function cronSummariseConversations(
 const processSummarisation = async (
   conv_id: string,
   assistant_id: string,
-  openai: OpenAI,
+  openai: AzureOpenAI,
   context: InvocationContext
 ): Promise<string> => {
   try {
@@ -209,7 +208,7 @@ const processSentiment = async (
 const processResultionAnalysis = async (
   conv_id: string,
   assistant_id: string,
-  openai: OpenAI,
+  openai: AzureOpenAI,
   context: InvocationContext
 ): Promise<number | undefined> => {
   try {

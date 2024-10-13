@@ -1,4 +1,4 @@
-import OpenAI, { toFile } from "openai";
+import { toFile, AzureOpenAI } from "openai";
 import { MessageRequest } from "./models/MessageRequest";
 import {
   MessageResponse,
@@ -8,14 +8,25 @@ import { InvocationContext } from "@azure/functions";
 import { MessageCreatorType, NewOrganisationFile } from "./models/Database";
 import { db, getFullConversation } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
-import { AssistantTool } from "openai/resources/beta/assistants";
+import { Assistant, AssistantTool } from "openai/resources/beta/assistants";
 import { Run } from "openai/resources/beta/threads/runs/runs";
 import { sendContactDetailsAlert } from "./OneSignalHandler";
 
-export const createConversationForOpenAI = async (): Promise<string> => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
+const chosenModel = "gpt-4o-mini";
+
+export const createAzureOpenAIClient = (): AzureOpenAI => {
+  const deployment = "8ai-azure-openai";
+  const apiVersion = "2024-09-01-preview";
+  return new AzureOpenAI({
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    deployment,
+    apiVersion,
   });
+};
+
+export const createConversationForOpenAI = async (): Promise<string> => {
+  const openai = createAzureOpenAIClient();
   const thread = await openai.beta.threads.create();
   return thread.id;
 };
@@ -27,9 +38,7 @@ export const handleMessageForOpenAI = async (
   contact_id: string,
   context: InvocationContext
 ): Promise<MessageResponse[]> => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   const thread_id = messageRequest.conversation_id.replace("conv_", "thread_");
   await openai.beta.threads.messages.create(thread_id, {
     role: "user",
@@ -61,9 +70,7 @@ export const handleSingleMessageForOpenAI = async (
   message: string,
   context: InvocationContext
 ): Promise<{ thread_id: string; response: MessageResponse[] }> => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   const run = await openai.beta.threads.createAndRunPoll(
     {
       assistant_id,
@@ -165,12 +172,9 @@ export const processOpenAIMessage = async (
 export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
-  filedata: string,
-  system_prompt: string
+  filedata: string
 ) => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
-  });
+  const openai = createAzureOpenAIClient();
 
   try {
     const myAssistant = await openai.beta.assistants.create({
@@ -179,13 +183,18 @@ export const createAssistant = async (
         .split(" ")
         .join("-")
         .toLowerCase()}`,
-      instructions: system_prompt,
-      model: "gpt-4o-mini",
+      instructions: "",
+      model: chosenModel,
       tools: getToolModel(false),
     });
 
     if (filedata) {
-      await updateAssistantFile(organisation_id, myAssistant.id, filedata);
+      await updateAssistantFile(
+        organisation_id,
+        organisation_name,
+        myAssistant.id,
+        filedata
+      );
     }
     return myAssistant.id;
   } catch (e) {
@@ -196,12 +205,11 @@ export const createAssistant = async (
 
 export const updateAssistantFile = async (
   organisation_id: string,
+  organisation_name: string,
   assistant_id: string,
   filedata: string
 ) => {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY,
-  });
+  const openai = createAzureOpenAIClient();
   let jsonData: {
     name: string;
     url: string;
@@ -227,28 +235,50 @@ export const updateAssistantFile = async (
   }
 
   try {
-    const assistant = await openai.beta.assistants.retrieve(assistant_id);
-    if (assistant.tools?.some((t) => t.type === "file_search")) {
-      // Delete existing files attached to this vector store
-      for (const vector_store_id of assistant.tool_resources.file_search
-        .vector_store_ids) {
-        let files = await openai.beta.vectorStores.files.list(vector_store_id, {
-          limit: 100,
-        });
-        while (files.data.length > 0) {
-          for (const file of files.data) {
-            await openai.files.del(file.id);
+    let assistant: Assistant;
+    if (assistant_id) {
+      assistant = await openai.beta.assistants.retrieve(assistant_id);
+      if (assistant.tools?.some((t) => t.type === "file_search")) {
+        // Delete existing files attached to this vector store
+        for (const vector_store_id of assistant.tool_resources.file_search
+          .vector_store_ids) {
+          let files = await openai.beta.vectorStores.files.list(
+            vector_store_id,
+            {
+              limit: 100,
+            }
+          );
+          while (files.data.length > 0) {
+            for (const file of files.data) {
+              await openai.files.del(file.id);
+            }
+            files = await openai.beta.vectorStores.files.list(vector_store_id, {
+              limit: 100,
+            });
           }
-          files = await openai.beta.vectorStores.files.list(vector_store_id, {
-            limit: 100,
-          });
+          await openai.beta.vectorStores.del(vector_store_id);
         }
-        await openai.beta.vectorStores.del(vector_store_id);
       }
+    } else {
+      // We need to create a new assistant
+      assistant = await openai.beta.assistants.create({
+        name: `8ai-${organisation_name
+          .trim()
+          .split(" ")
+          .join("-")
+          .toLowerCase()}`,
+        instructions: "",
+        model: chosenModel,
+        tools: getToolModel(false),
+      });
+      await db
+        .updateTable("organisations")
+        .set({ assistant_id: assistant.id })
+        .where("id", "=", organisation_id)
+        .execute();
     }
 
     // add new files
-
     const newOrganisationFiles: NewOrganisationFile[] = [];
 
     let i = 0;
@@ -259,7 +289,7 @@ export const updateAssistantFile = async (
         const newFile = await openai.files.create({
           file: await toFile(
             Buffer.from(JSON.stringify(content)),
-            `${assistant_id}-${i}.json`
+            `${assistant.id}-${i}.json`
           ),
           purpose: "assistants",
         });
@@ -279,7 +309,7 @@ export const updateAssistantFile = async (
 
     // create a new vector store with existing files
     const newVectorStore = await openai.beta.vectorStores.create({
-      name: `vs_for_${assistant_id}`,
+      name: `vs_for_${assistant.id}`,
       file_ids: newOrganisationFiles.slice(0, 100).map((f) => f.id),
     });
 
@@ -292,7 +322,7 @@ export const updateAssistantFile = async (
       }
     }
 
-    await openai.beta.assistants.update(assistant_id, {
+    await openai.beta.assistants.update(assistant.id, {
       tools: getToolModel(true),
       tool_resources: {
         file_search: {
@@ -318,7 +348,7 @@ type SaveContactDetailsPayload = {
 export const handleThreadRun = async (
   thread_id: string,
   run: Run,
-  openai: OpenAI,
+  openai: AzureOpenAI,
   context: InvocationContext,
   conversation_id: string = "",
   contact_id: string | undefined
