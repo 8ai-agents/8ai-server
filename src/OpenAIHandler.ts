@@ -363,6 +363,10 @@ export const updateAssistantFile = async (
       `Updated assistant ${assistant.id} for organisation ${organisation_name}`
     );
     await db
+      .deleteFrom("organisation_files")
+      .where("organisation_id", "=", organisation_id)
+      .execute();
+    await db
       .insertInto("organisation_files")
       .values(newOrganisationFiles)
       .execute();
