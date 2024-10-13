@@ -258,6 +258,7 @@ export const updateAssistantFile = async (
           while (files.data.length > 0) {
             for (const file of files.data) {
               await openai.files.del(file.id);
+              context.log(`Deleted file ${file.id}`);
             }
             files = await openai.beta.vectorStores.files.list(vector_store_id, {
               limit: 100,
@@ -295,7 +296,7 @@ export const updateAssistantFile = async (
     let i = 0;
     // Can only take 500 files here
     context.log(
-      `Creating new ${jsonData.length} files for organisation ${organisation_name}`
+      `Creating ${jsonData.length} new files for organisation ${organisation_name}`
     );
     for (const jsonItem of jsonData.slice(0, 500)) {
       try {
