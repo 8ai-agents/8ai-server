@@ -51,6 +51,9 @@ export async function updateOrganisation(
     orgToUpdate.system_prompt = organisationRequest.system_prompt;
     orgToUpdate.default_questions = organisationRequest.default_questions;
     if (organisationRequest.fine_tuning_data) {
+      context.log(
+        `Fine tuning data has been updated for organisation ${orgToUpdate.id}`
+      );
       // Fine tuning data has been updated, update OpenAI
       orgToUpdate.fine_tuning_filename =
         organisationRequest.fine_tuning_filename;
@@ -58,7 +61,8 @@ export async function updateOrganisation(
         organisationRequest.id,
         organisationRequest.name,
         organisationRequest.assistant_id,
-        organisationRequest.fine_tuning_data
+        organisationRequest.fine_tuning_data,
+        context
       );
     }
 

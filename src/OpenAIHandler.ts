@@ -172,11 +172,13 @@ export const processOpenAIMessage = async (
 export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
-  filedata: string
+  filedata: string,
+  context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
 
   try {
+    context.log(`Creating new assistant for organisation ${organisation_name}`);
     const myAssistant = await openai.beta.assistants.create({
       name: `8ai-${organisation_name
         .trim()
@@ -193,7 +195,8 @@ export const createAssistant = async (
         organisation_id,
         organisation_name,
         myAssistant.id,
-        filedata
+        filedata,
+        context
       );
     }
     return myAssistant.id;
@@ -207,7 +210,8 @@ export const updateAssistantFile = async (
   organisation_id: string,
   organisation_name: string,
   assistant_id: string,
-  filedata: string
+  filedata: string,
+  context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
   let jsonData: {
@@ -248,6 +252,9 @@ export const updateAssistantFile = async (
               limit: 100,
             }
           );
+          context.log(
+            `Deleting files for vector store ${vector_store_id} - deleting ${files.data.length} files`
+          );
           while (files.data.length > 0) {
             for (const file of files.data) {
               await openai.files.del(file.id);
@@ -257,10 +264,14 @@ export const updateAssistantFile = async (
             });
           }
           await openai.beta.vectorStores.del(vector_store_id);
+          context.log(`Deleted existing vector store ${vector_store_id}`);
         }
       }
     } else {
       // We need to create a new assistant
+      context.log(
+        `Creating new assistant for organisation ${organisation_name}`
+      );
       assistant = await openai.beta.assistants.create({
         name: `8ai-${organisation_name
           .trim()
@@ -283,6 +294,9 @@ export const updateAssistantFile = async (
 
     let i = 0;
     // Can only take 500 files here
+    context.log(
+      `Creating new ${jsonData.length} files for organisation ${organisation_name}`
+    );
     for (const jsonItem of jsonData.slice(0, 500)) {
       try {
         const content: { text: string } = { text: jsonItem.content };
@@ -302,16 +316,27 @@ export const updateAssistantFile = async (
           content: jsonItem.content,
         });
         i++;
+        context.log(
+          `Created file ${i} of ${jsonData.length} ${jsonItem.name} for organisation ${organisation_name}`
+        );
       } catch {
-        // carry on with others
+        context.error(
+          `Error creating file ${i} of ${jsonData.length} ${jsonItem.name} for organisation ${organisation_name}`
+        );
       }
     }
+    context.log(
+      `Created ${jsonData.length} files for organisation ${organisation_name}`
+    );
 
     // create a new vector store with existing files
     const newVectorStore = await openai.beta.vectorStores.create({
       name: `vs_for_${assistant.id}`,
       file_ids: newOrganisationFiles.slice(0, 100).map((f) => f.id),
     });
+    context.log(
+      `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`
+    );
 
     if (newOrganisationFiles.length > 100) {
       // We have to add new files one by one when more than 100
@@ -321,6 +346,9 @@ export const updateAssistantFile = async (
         });
       }
     }
+    context.log(
+      `Attached files to new vector store ${newVectorStore.id} for organisation ${organisation_name}`
+    );
 
     await openai.beta.assistants.update(assistant.id, {
       tools: getToolModel(true),
@@ -330,10 +358,16 @@ export const updateAssistantFile = async (
         },
       },
     });
+    context.log(
+      `Updated assistant ${assistant.id} for organisation ${organisation_name}`
+    );
     await db
       .insertInto("organisation_files")
       .values(newOrganisationFiles)
       .execute();
+    context.log(
+      `Completed assistant update ${assistant.id} organisation ${organisation_name}`
+    );
   } catch (e) {
     throw `Failed to update AI assistant ${e.message}`;
   }
