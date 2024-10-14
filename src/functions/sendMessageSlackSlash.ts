@@ -47,7 +47,7 @@ export async function sendMessageSlackSlash(
       user_id &&
       typeof user_id == "string"
     ) {
-      context.log(`Processing message from Slack ${messageText}`);
+      context.log(`Processing message from Slack Slash ${messageText}`);
 
       // Verify that org has an assistant
       const { assistant_id } = await db
@@ -93,6 +93,9 @@ export async function sendMessageSlackSlash(
 
       try {
         await client.send(events);
+        context.log(
+          `Published message from Slack Slash on event queue ${messageText}`
+        );
         return {
           status: 200,
           jsonBody: {

@@ -93,6 +93,9 @@ export async function sendMessageSlackBot(
 
       try {
         await eventGridClient.send(eventPayload);
+        context.log(
+          `Published message from SlackBot on event queue: ${messageRequest.event.text}`
+        );
         return {
           status: 200,
         };
