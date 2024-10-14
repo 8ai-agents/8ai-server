@@ -143,13 +143,18 @@ export type OrganisationUpdate = Updateable<OrganisationTable>;
 export interface OrganisationFileTable {
   id: string;
   organisation_id: string;
+  original_filename: string;
   name: string;
   url: string;
   content: string;
+  openai_id: string;
+  created_at: number;
+  updated_at: number;
 }
 
 export type OrganisationFile = Selectable<OrganisationFileTable>;
 export type NewOrganisationFile = Insertable<OrganisationFileTable>;
+export type OrganisationFileToUpdate = Updateable<OrganisationFileTable>;
 
 export interface OrganisationSlackTable {
   id: string;
