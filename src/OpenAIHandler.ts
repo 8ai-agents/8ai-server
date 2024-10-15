@@ -453,6 +453,9 @@ export const createFile = async (
       purpose: "assistants",
     });
     newFile.openai_id = newOpenAIFile.id;
+    context.log(
+      `Published file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id} to OpenAI`
+    );
     return newFile;
   } catch {
     context.error(
@@ -558,25 +561,26 @@ export const updateFile = async (
     openai = createAzureOpenAIClient();
   }
 
-  try {
-    if (updateFile.openai_id) {
-      // Delete existing
+  if (updateFile.openai_id) {
+    // Delete existing
+    try {
       await openai.files.del(updateFile.openai_id);
+    } catch {
+      // We couldn't delete it, that's okay - we can move on and create a new one
+      context.warn(
+        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
+      );
     }
-    updateFile.openai_id = undefined;
-    return await createFileAndAttachToVectorStore(
-      updateFile,
-      assistant_id,
-      organisation_id,
-      organisation_name,
-      openai,
-      context
-    );
-  } catch {
-    context.error(
-      `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
-    );
   }
+  updateFile.openai_id = undefined;
+  return await createFileAndAttachToVectorStore(
+    updateFile,
+    assistant_id,
+    organisation_id,
+    organisation_name,
+    openai,
+    context
+  );
 };
 
 const saveContactDetails = async (
