@@ -51,13 +51,40 @@ export async function updateOrganisationFile(
     };
   }
 
+  if (fileRequest.url) {
+    // URLs should generally be unique, so if this is set we check that there is not another already with it
+    const existingURls = await db
+      .selectFrom("organisation_files")
+      .select(["id", "name", "url"])
+      .where("organisation_id", "=", org_id)
+      .where("id", "!=", existingFileToUpdate.id)
+      .where("url", "is not", null)
+      .execute();
+    if (
+      existingURls.some(
+        (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase()
+      )
+    ) {
+      return {
+        status: 400,
+        jsonBody: {
+          error: `There is another file ${
+            existingURls.find(
+              (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase()
+            ).name
+          } already with this URL`,
+        },
+      };
+    }
+  }
+
   context.log(
     `Update Organisation File for ${org_id} ${existingFileToUpdate.id}`
   );
 
   existingFileToUpdate.updated_at = Date.now();
   existingFileToUpdate.name = fileRequest.name;
-  existingFileToUpdate.url = fileRequest.url;
+  existingFileToUpdate.url = fileRequest.url.toLowerCase();
   existingFileToUpdate.content = fileRequest.content;
 
   // Create or update in openAI
