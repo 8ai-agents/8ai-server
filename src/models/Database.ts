@@ -143,7 +143,6 @@ export type OrganisationUpdate = Updateable<OrganisationTable>;
 export interface OrganisationFileTable {
   id: string;
   organisation_id: string;
-  original_filename: string;
   name: string;
   url: string;
   content: string;

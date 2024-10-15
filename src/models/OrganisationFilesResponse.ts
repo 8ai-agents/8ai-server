@@ -1,7 +1,8 @@
 export interface OrganisationFilesResponse {
-  id: string | undefined;
+  id: string;
   organisation_id: string;
-  original_filename: string;
   name: string;
   url: string;
+  created_at: number;
+  updated_at: number;
 }

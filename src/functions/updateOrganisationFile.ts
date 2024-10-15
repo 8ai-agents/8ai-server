@@ -57,7 +57,6 @@ export async function updateOrganisationFile(
 
   existingFileToUpdate.updated_at = Date.now();
   existingFileToUpdate.name = fileRequest.name;
-  existingFileToUpdate.original_filename = fileRequest.original_filename;
   existingFileToUpdate.url = fileRequest.url;
   existingFileToUpdate.content = fileRequest.content;
 
