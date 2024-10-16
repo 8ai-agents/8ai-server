@@ -177,9 +177,7 @@ export const processOpenAIMessage = async (
 };
 
 export const createAssistant = async (
-  organisation_id: string,
   organisation_name: string,
-  newFiles: OrganisationFileRequest[],
   context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
@@ -197,15 +195,6 @@ export const createAssistant = async (
       tools: getToolModel(false),
     });
 
-    if (newFiles) {
-      await updateAssistantFile(
-        organisation_id,
-        organisation_name,
-        myAssistant.id,
-        newFiles,
-        context
-      );
-    }
     return myAssistant.id;
   } catch (e) {
     console.error(`Failed to create assistant in OpenAI: ${e.message}`);
@@ -465,6 +454,42 @@ export const createFile = async (
   }
 };
 
+export const createFilesAndAttachToVectorStore = async (
+  newFiles: NewOrganisationFile[],
+  assistant_id: string | undefined,
+  organisation_id: string,
+  organisation_name: string,
+  openai: AzureOpenAI | undefined,
+  context: InvocationContext
+) => {
+  if (!openai) {
+    openai = createAzureOpenAIClient();
+  }
+  // first create files
+  for (let newFile of newFiles) {
+    try {
+      newFile = await createFile(newFile, assistant_id, openai, context);
+      context.log(
+        `Created file ${
+          newFiles.findIndex((f) => f.id === newFile.id) + 1
+        } of ${newFiles.length}`
+      );
+    } catch (e) {
+      context.error(`Error creating file ${newFile.id} ${newFile.name}`);
+    }
+  }
+
+  await attachFileToVectorStore(
+    newFiles.map((f) => f.openai_id),
+    assistant_id,
+    openai,
+    organisation_name,
+    organisation_id,
+    context
+  );
+  return newFiles;
+};
+
 export const createFileAndAttachToVectorStore = async (
   newFile: NewOrganisationFile,
   assistant_id: string | undefined,
@@ -479,75 +504,15 @@ export const createFileAndAttachToVectorStore = async (
   // first create file
   newFile = await createFile(newFile, assistant_id, openai, context);
 
-  try {
-    let assistant: Assistant;
-    if (assistant_id) {
-      // retrieve existing assistant
-      assistant = await openai.beta.assistants.retrieve(assistant_id);
-    } else {
-      // We need to create a new assistant
-      context.log(
-        `Creating new assistant for organisation ${organisation_name}`
-      );
-      assistant = await openai.beta.assistants.create({
-        name: `8ai-${organisation_name
-          .trim()
-          .split(" ")
-          .join("-")
-          .toLowerCase()}`,
-        instructions: "",
-        model: chosenModel,
-        tools: getToolModel(false),
-      });
-      await db
-        .updateTable("organisations")
-        .set({ assistant_id: assistant.id })
-        .where("id", "=", organisation_id)
-        .execute();
-    }
-
-    // Lets now attach the new file to the vector store
-    let vectorStoreID: string =
-      assistant.tool_resources?.file_search?.vector_store_ids[0];
-
-    if (!vectorStoreID) {
-      // Create new vector store and attach file in one operation
-      // create a new vector store with existing files
-      const newVectorStore = await openai.beta.vectorStores.create({
-        name: `vs_for_${assistant.id}`,
-        file_ids: [newFile.openai_id],
-      });
-      context.log(
-        `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`
-      );
-      vectorStoreID = newVectorStore.id;
-      await openai.beta.assistants.update(assistant.id, {
-        tools: getToolModel(true),
-        tool_resources: {
-          file_search: {
-            vector_store_ids: [newVectorStore.id],
-          },
-        },
-      });
-    } else {
-      // Attach file
-      await openai.beta.vectorStores.files.create(vectorStoreID, {
-        file_id: newFile.openai_id,
-      });
-    }
-    context.log(
-      `Attached files to new vector store ${vectorStoreID} for organisation ${organisation_name}`
-    );
-    return newFile;
-  } catch {
-    context.error(
-      `Error attaching file to vector store ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id}`
-    );
-    // Clean up
-    if (newFile.openai_id) {
-      await openai.files.del(newFile.openai_id);
-    }
-  }
+  await attachFileToVectorStore(
+    [newFile.openai_id],
+    assistant_id,
+    openai,
+    organisation_name,
+    organisation_id,
+    context
+  );
+  return newFile;
 };
 
 export const updateFile = async (
@@ -566,11 +531,12 @@ export const updateFile = async (
     // Delete existing
     try {
       await openai.files.del(updateFile.openai_id);
-    } catch {
+    } catch (e) {
       // We couldn't delete it, that's okay - we can move on and create a new one
       context.warn(
         `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
       );
+      context.warn(JSON.stringify(e));
     }
   }
   updateFile.openai_id = undefined;
@@ -584,7 +550,44 @@ export const updateFile = async (
   );
 };
 
-export const getOpenAIVectorStoreFile = async (
+export const updateFiles = async (
+  updateFiles: OrganisationFileToUpdate[],
+  assistant_id: string | undefined,
+  organisation_id: string,
+  organisation_name: string,
+  openai: AzureOpenAI | undefined,
+  context: InvocationContext
+) => {
+  if (!openai) {
+    openai = createAzureOpenAIClient();
+  }
+
+  // first delete existing files
+  for (const updateFile of updateFiles.filter((f) => f.openai_id)) {
+    // Delete existing
+    try {
+      await openai.files.del(updateFile.openai_id);
+    } catch (e) {
+      // We couldn't delete it, that's okay - we can move on and create a new one
+      context.warn(
+        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
+      );
+      context.warn(JSON.stringify(e));
+    }
+    updateFile.openai_id = undefined;
+  }
+
+  return await createFilesAndAttachToVectorStore(
+    updateFiles,
+    assistant_id,
+    organisation_id,
+    organisation_name,
+    openai,
+    context
+  );
+};
+
+export const getVectorStoreFile = async (
   assistant_id: string,
   openAIFileID: string
 ): Promise<VectorStoreFile> => {
@@ -597,6 +600,42 @@ export const getOpenAIVectorStoreFile = async (
     );
   } else {
     throw new Error("No vector store found");
+  }
+};
+
+export const resetVectorStoreAndFiles = async (
+  assistant_id: string,
+  context: InvocationContext
+) => {
+  const openai = createAzureOpenAIClient();
+  const assistant = await openai.beta.assistants.retrieve(assistant_id);
+  if (assistant.tools?.some((t) => t.type === "file_search")) {
+    // Delete existing files attached to this vector store
+    for (const vector_store_id of assistant.tool_resources.file_search
+      .vector_store_ids) {
+      let files = await openai.beta.vectorStores.files.list(vector_store_id, {
+        limit: 100,
+      });
+      context.log(
+        `Deleting files for vector store ${vector_store_id} - deleting ${files.data.length} files`
+      );
+      while (files.data.length > 0) {
+        for (const file of files.data) {
+          try {
+            await openai.files.del(file.id);
+            context.log(`Deleted file ${file.id}`);
+          } catch (e) {
+            context.warn(`Error deleting file with openai ID ${file.id}`);
+            context.warn(JSON.stringify(e));
+          }
+        }
+        files = await openai.beta.vectorStores.files.list(vector_store_id, {
+          limit: 100,
+        });
+      }
+      await openai.beta.vectorStores.del(vector_store_id);
+      context.log(`Deleted existing vector store ${vector_store_id}`);
+    }
   }
 };
 
@@ -651,6 +690,92 @@ const saveContactDetails = async (
     return JSON.stringify(details);
   } catch (error) {
     return "Can't parse details";
+  }
+};
+
+const attachFileToVectorStore = async (
+  file_ids: string[],
+  assistant_id: string,
+  openai: AzureOpenAI,
+  organisation_name: string,
+  organisation_id: string,
+  context: InvocationContext
+) => {
+  try {
+    let assistant: Assistant;
+    if (assistant_id) {
+      // retrieve existing assistant
+      assistant = await openai.beta.assistants.retrieve(assistant_id);
+    } else {
+      // We need to create a new assistant
+      context.log(
+        `Creating new assistant for organisation ${organisation_name}`
+      );
+      assistant = await openai.beta.assistants.create({
+        name: `8ai-${organisation_name
+          .trim()
+          .split(" ")
+          .join("-")
+          .toLowerCase()}`,
+        instructions: "",
+        model: chosenModel,
+        tools: getToolModel(false),
+      });
+      await db
+        .updateTable("organisations")
+        .set({ assistant_id: assistant.id })
+        .where("id", "=", organisation_id)
+        .execute();
+    }
+
+    // Lets now attach the new file to the vector store
+    let vectorStoreID: string =
+      assistant.tool_resources?.file_search?.vector_store_ids[0];
+
+    if (!vectorStoreID) {
+      // Create new vector store and attach file in one operation
+      // create a new vector store with existing files
+      const newVectorStore = await openai.beta.vectorStores.create({
+        name: `vs_for_${assistant.id}`,
+        file_ids,
+      });
+      context.log(
+        `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`
+      );
+      vectorStoreID = newVectorStore.id;
+      await openai.beta.assistants.update(assistant.id, {
+        tools: getToolModel(true),
+        tool_resources: {
+          file_search: {
+            vector_store_ids: [newVectorStore.id],
+          },
+        },
+      });
+      context.log("Created new vector store and attached files");
+    } else {
+      // Attach file
+      file_ids.forEach(async (file_id) => {
+        try {
+          await openai.beta.vectorStores.files.create(vectorStoreID, {
+            file_id,
+          });
+        } catch (e) {
+          context.error(
+            `Error attaching file to vector store ${file_ids} for organisation ${organisation_name}`
+          );
+          // Clean up
+          await openai.files.del(file_id);
+        }
+      });
+      context.log(
+        `Attached files to existing vector store ${vectorStoreID} for organisation ${organisation_name}`
+      );
+    }
+  } catch {
+    // Clean up
+    for (const file_id of file_ids) {
+      await openai.files.del(file_id);
+    }
   }
 };
 

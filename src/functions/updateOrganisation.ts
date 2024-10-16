@@ -8,7 +8,6 @@ import { authenticateRequest } from "../AuthController";
 import { OrganisationUpdate } from "../models/Database";
 import { OrganisationRequest } from "../models/OrganisationRequest";
 import { db, getOrganisation } from "../DatabaseController";
-import { updateAssistantFile } from "../OpenAIHandler";
 import { checkUserIsAdmin } from "../Utils";
 
 export async function updateOrganisation(
@@ -50,21 +49,6 @@ export async function updateOrganisation(
     orgToUpdate.chat_text_color = organisationRequest.chat_text_color;
     orgToUpdate.system_prompt = organisationRequest.system_prompt;
     orgToUpdate.default_questions = organisationRequest.default_questions;
-    if (organisationRequest.fine_tuning_data) {
-      context.log(
-        `Fine tuning data has been updated for organisation ${orgToUpdate.id}`
-      );
-      // Fine tuning data has been updated, update OpenAI
-      orgToUpdate.fine_tuning_filename =
-        organisationRequest.fine_tuning_filename;
-      await updateAssistantFile(
-        organisationRequest.id,
-        organisationRequest.name,
-        organisationRequest.assistant_id,
-        organisationRequest.fine_tuning_data,
-        context
-      );
-    }
 
     await db
       .updateTable("organisations")

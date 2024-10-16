@@ -12,7 +12,7 @@ import {
   OrganisationFileTrainingStatuses,
 } from "../models/OrganisationFileResponse";
 import { OrganisationFile } from "../models/Database";
-import { getOpenAIVectorStoreFile } from "../OpenAIHandler";
+import { getVectorStoreFile } from "../OpenAIHandler";
 
 export async function getOrganisationFile(
   request: HttpRequest,
@@ -61,7 +61,7 @@ export async function getOrganisationFile(
       if (file.openai_id) {
         // Get sync status from OpenAI
         try {
-          const openaiFile = await getOpenAIVectorStoreFile(
+          const openaiFile = await getVectorStoreFile(
             await db
               .selectFrom("organisations")
               .select(["assistant_id"])

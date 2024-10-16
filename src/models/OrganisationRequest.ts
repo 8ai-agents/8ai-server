@@ -1,5 +1,3 @@
-import { OrganisationFileRequest } from "./OrganisationFileRequest";
-
 export interface OrganisationRequest {
   id: string | undefined;
   name: string;
@@ -12,8 +10,6 @@ export interface OrganisationRequest {
   chat_icon_color: string;
   chat_bubble_color: string;
   chat_text_color: string;
-  fine_tuning_filename: string;
-  fine_tuning_data: OrganisationFileRequest[] | undefined;
   default_questions: string[];
   system_prompt: string;
 }

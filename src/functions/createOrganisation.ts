@@ -38,7 +38,6 @@ export async function createOrganisation(
       chat_icon_color: organisationRequest.chat_icon_color,
       chat_bubble_color: organisationRequest.chat_bubble_color,
       chat_text_color: organisationRequest.chat_text_color,
-      fine_tuning_filename: organisationRequest.fine_tuning_filename,
       default_questions: organisationRequest.default_questions || [],
       system_prompt: organisationRequest.system_prompt,
       auto_close_conversations: false,
@@ -74,9 +73,7 @@ export async function createOrganisation(
       // Create a new assistant using OpenAI's JS SDK
       try {
         const assistant_id = await createAssistant(
-          organisationToSave.id,
           organisationRequest.name,
-          organisationRequest.fine_tuning_data,
           context
         );
         // save assistant ID to org

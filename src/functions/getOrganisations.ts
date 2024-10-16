@@ -35,7 +35,6 @@ export async function getOrganisations(
       "chat_icon_color",
       "chat_bubble_color",
       "chat_text_color",
-      "fine_tuning_filename",
       "default_questions",
       "system_prompt",
     ])
