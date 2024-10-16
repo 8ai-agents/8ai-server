@@ -49,5 +49,6 @@ export const convertResolutionToString = (resolution: number) => {
     : "Not at all resolved";
 };
 
-export const createID = (type: "cont" | "conv" | "msg" | "org" | "user") =>
-  `${type}_${randomBytes(16).toString("hex")}`;
+export const createID = (
+  type: "cont" | "conv" | "msg" | "org" | "user" | "file"
+) => `${type}_${randomBytes(16).toString("hex")}`;

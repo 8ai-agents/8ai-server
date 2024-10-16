@@ -5,12 +5,18 @@ import {
   MessageResponseCitation,
 } from "./models/MessageResponse";
 import { InvocationContext } from "@azure/functions";
-import { MessageCreatorType, NewOrganisationFile } from "./models/Database";
+import {
+  MessageCreatorType,
+  NewOrganisationFile,
+  OrganisationFileToUpdate,
+} from "./models/Database";
 import { db, getFullConversation } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
 import { Assistant, AssistantTool } from "openai/resources/beta/assistants";
 import { Run } from "openai/resources/beta/threads/runs/runs";
 import { sendContactDetailsAlert } from "./OneSignalHandler";
+import { OrganisationFileRequest } from "./models/OrganisationFileRequest";
+import { createID } from "./Utils";
 
 const chosenModel = "gpt-4o-mini";
 
@@ -172,7 +178,7 @@ export const processOpenAIMessage = async (
 export const createAssistant = async (
   organisation_id: string,
   organisation_name: string,
-  filedata: string,
+  newFiles: OrganisationFileRequest[],
   context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
@@ -190,12 +196,12 @@ export const createAssistant = async (
       tools: getToolModel(false),
     });
 
-    if (filedata) {
+    if (newFiles) {
       await updateAssistantFile(
         organisation_id,
         organisation_name,
         myAssistant.id,
-        filedata,
+        newFiles,
         context
       );
     }
@@ -210,33 +216,10 @@ export const updateAssistantFile = async (
   organisation_id: string,
   organisation_name: string,
   assistant_id: string,
-  filedata: string,
+  newFiles: OrganisationFileRequest[],
   context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
-  let jsonData: {
-    name: string;
-    url: string;
-    content: string;
-  }[] = [];
-  try {
-    jsonData = JSON.parse(filedata);
-    if (
-      !Array.isArray(jsonData) ||
-      !jsonData.every((item) => {
-        return (
-          typeof item === "object" &&
-          typeof item.name === "string" &&
-          typeof item.url === "string" &&
-          typeof item.content === "string"
-        );
-      })
-    ) {
-      throw "File is not in the valid JSON format";
-    }
-  } catch {
-    throw "File is not a valid JSON";
-  }
 
   try {
     let assistant: Assistant;
@@ -296,38 +279,31 @@ export const updateAssistantFile = async (
     let i = 0;
     // Can only take 500 files here
     context.log(
-      `Creating ${jsonData.length} new files for organisation ${organisation_name}`
+      `Creating ${newFiles.length} new files for organisation ${organisation_name}`
     );
-    for (const jsonItem of jsonData.slice(0, 500)) {
+    for (const newFile of newFiles.slice(0, 500)) {
       try {
-        const content: { text: string } = { text: jsonItem.content };
-        const newFile = await openai.files.create({
-          file: await toFile(
-            Buffer.from(JSON.stringify(content)),
-            `${assistant.id}-${i}.json`
-          ),
-          purpose: "assistants",
-        });
-
-        newOrganisationFiles.push({
-          id: newFile.id,
-          organisation_id,
-          name: jsonItem.name,
-          url: jsonItem.url,
-          content: jsonItem.content,
-        });
+        let newDBFile: NewOrganisationFile = {
+          ...newFile,
+          id: createID("file"),
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          organisation_id: organisation_id,
+        };
+        newDBFile = await createFile(newDBFile, assistant.id, openai, context);
+        newOrganisationFiles.push(newDBFile);
         i++;
         context.log(
-          `Created file ${i} of ${jsonData.length} ${jsonItem.name} for organisation ${organisation_name}`
+          `Created file ${i} of ${newFiles.length} ${newFile.name} for organisation ${organisation_name}`
         );
       } catch {
         context.error(
-          `Error creating file ${i} of ${jsonData.length} ${jsonItem.name} for organisation ${organisation_name}`
+          `Error creating file ${i} of ${newFiles.length} ${newFile.name} for organisation ${organisation_name}`
         );
       }
     }
     context.log(
-      `Created ${jsonData.length} files for organisation ${organisation_name}`
+      `Created ${newFiles.length} files for organisation ${organisation_name}`
     );
 
     // create a new vector store with existing files
@@ -456,6 +432,155 @@ export const handleThreadRun = async (
   }
 
   return messageResponse;
+};
+
+export const createFile = async (
+  newFile: NewOrganisationFile,
+  assistant_id: string,
+  openai: AzureOpenAI | undefined,
+  context: InvocationContext
+) => {
+  if (!openai) {
+    openai = createAzureOpenAIClient();
+  }
+  try {
+    const content: { text: string } = { text: newFile.content };
+    const newOpenAIFile = await openai.files.create({
+      file: await toFile(
+        Buffer.from(JSON.stringify(content)),
+        `${assistant_id}-${newFile.id}.json`
+      ),
+      purpose: "assistants",
+    });
+    newFile.openai_id = newOpenAIFile.id;
+    context.log(
+      `Published file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id} to OpenAI`
+    );
+    return newFile;
+  } catch {
+    context.error(
+      `Error creating file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id}`
+    );
+  }
+};
+
+export const createFileAndAttachToVectorStore = async (
+  newFile: NewOrganisationFile,
+  assistant_id: string | undefined,
+  organisation_id: string,
+  organisation_name: string,
+  openai: AzureOpenAI | undefined,
+  context: InvocationContext
+) => {
+  if (!openai) {
+    openai = createAzureOpenAIClient();
+  }
+  // first create file
+  newFile = await createFile(newFile, assistant_id, openai, context);
+
+  try {
+    let assistant: Assistant;
+    if (assistant_id) {
+      // retrieve existing assistant
+      assistant = await openai.beta.assistants.retrieve(assistant_id);
+    } else {
+      // We need to create a new assistant
+      context.log(
+        `Creating new assistant for organisation ${organisation_name}`
+      );
+      assistant = await openai.beta.assistants.create({
+        name: `8ai-${organisation_name
+          .trim()
+          .split(" ")
+          .join("-")
+          .toLowerCase()}`,
+        instructions: "",
+        model: chosenModel,
+        tools: getToolModel(false),
+      });
+      await db
+        .updateTable("organisations")
+        .set({ assistant_id: assistant.id })
+        .where("id", "=", organisation_id)
+        .execute();
+    }
+
+    // Lets now attach the new file to the vector store
+    let vectorStoreID: string =
+      assistant.tool_resources?.file_search?.vector_store_ids[0];
+
+    if (!vectorStoreID) {
+      // Create new vector store and attach file in one operation
+      // create a new vector store with existing files
+      const newVectorStore = await openai.beta.vectorStores.create({
+        name: `vs_for_${assistant.id}`,
+        file_ids: [newFile.openai_id],
+      });
+      context.log(
+        `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`
+      );
+      vectorStoreID = newVectorStore.id;
+      await openai.beta.assistants.update(assistant.id, {
+        tools: getToolModel(true),
+        tool_resources: {
+          file_search: {
+            vector_store_ids: [newVectorStore.id],
+          },
+        },
+      });
+    } else {
+      // Attach file
+      await openai.beta.vectorStores.files.create(vectorStoreID, {
+        file_id: newFile.openai_id,
+      });
+    }
+    context.log(
+      `Attached files to new vector store ${vectorStoreID} for organisation ${organisation_name}`
+    );
+    return newFile;
+  } catch {
+    context.error(
+      `Error attaching file to vector store ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id}`
+    );
+    // Clean up
+    if (newFile.openai_id) {
+      await openai.files.del(newFile.openai_id);
+    }
+  }
+};
+
+export const updateFile = async (
+  updateFile: OrganisationFileToUpdate,
+  assistant_id: string | undefined,
+  organisation_id: string,
+  organisation_name: string,
+  openai: AzureOpenAI | undefined,
+  context: InvocationContext
+) => {
+  if (!openai) {
+    openai = createAzureOpenAIClient();
+  }
+
+  if (updateFile.openai_id) {
+    // Delete existing
+    try {
+      await openai.files.del(updateFile.openai_id);
+    } catch {
+      // We couldn't delete it, that's okay - we can move on and create a new one
+      context.warn(
+        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
+      );
+    }
+  }
+  updateFile.openai_id = undefined;
+  return await createFileAndAttachToVectorStore(
+    updateFile,
+    assistant_id,
+    organisation_id,
+    organisation_name,
+    openai,
+    context
+  );
 };
 
 const saveContactDetails = async (
