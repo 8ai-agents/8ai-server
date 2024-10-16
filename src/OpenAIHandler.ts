@@ -17,6 +17,7 @@ import { Run } from "openai/resources/beta/threads/runs/runs";
 import { sendContactDetailsAlert } from "./OneSignalHandler";
 import { OrganisationFileRequest } from "./models/OrganisationFileRequest";
 import { createID } from "./Utils";
+import { VectorStoreFile } from "openai/resources/beta/vector-stores/files";
 
 const chosenModel = "gpt-4o-mini";
 
@@ -581,6 +582,22 @@ export const updateFile = async (
     openai,
     context
   );
+};
+
+export const getOpenAIVectorStoreFile = async (
+  assistant_id: string,
+  openAIFileID: string
+): Promise<VectorStoreFile> => {
+  const openai = createAzureOpenAIClient();
+  const assistant = await openai.beta.assistants.retrieve(assistant_id);
+  if (assistant.tool_resources.file_search.vector_store_ids.length > 0) {
+    return openai.beta.vectorStores.files.retrieve(
+      assistant.tool_resources.file_search.vector_store_ids[0],
+      openAIFileID
+    );
+  } else {
+    throw new Error("No vector store found");
+  }
 };
 
 const saveContactDetails = async (

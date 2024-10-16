@@ -7,7 +7,10 @@ import {
 import { db } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
 import { checkUserIsAdmin } from "../Utils";
-import { OrganisationFileResponse } from "../models/OrganisationFileResponse";
+import {
+  OrganisationFileResponse,
+  OrganisationFileTrainingStatuses,
+} from "../models/OrganisationFileResponse";
 import { OrganisationFileRequest } from "../models/OrganisationFileRequest";
 import { OrganisationFileToUpdate } from "../models/Database";
 import { updateFile } from "../OpenAIHandler";
@@ -88,6 +91,8 @@ export async function updateOrganisationFile(
   existingFileToUpdate.content = fileRequest.content;
 
   // Create or update in openAI
+  let training_status: OrganisationFileTrainingStatuses =
+    OrganisationFileTrainingStatuses.NOT_SYNCED;
   const { assistant_id, name: organisation_name } = await db
     .selectFrom("organisations")
     .select(["assistant_id", "name", "id"])
@@ -104,6 +109,7 @@ export async function updateOrganisationFile(
         undefined,
         context
       );
+      training_status = OrganisationFileTrainingStatuses.IN_PROGRESS;
     } catch (e) {
       context.error(`Error Publishing file to OpenAI`);
       context.error(e);
@@ -123,12 +129,15 @@ export async function updateOrganisationFile(
       .where("id", "=", existingFileToUpdate.id)
       .execute();
 
-    const jsonBody: OrganisationFileResponse = await db
-      .selectFrom("organisation_files")
-      .selectAll()
-      .where("organisation_id", "=", org_id)
-      .where("id", "=", existingFileToUpdate.id)
-      .executeTakeFirst();
+    const jsonBody: OrganisationFileResponse = {
+      ...(await db
+        .selectFrom("organisation_files")
+        .selectAll()
+        .where("organisation_id", "=", org_id)
+        .where("id", "=", existingFileToUpdate.id)
+        .executeTakeFirst()),
+      training_status,
+    };
     return { status: 200, jsonBody };
   } catch {
     return {

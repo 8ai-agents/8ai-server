@@ -7,7 +7,10 @@ import {
 import { db } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
 import { checkUserIsAdmin, createID } from "../Utils";
-import { OrganisationFileResponse } from "../models/OrganisationFileResponse";
+import {
+  OrganisationFileResponse,
+  OrganisationFileTrainingStatuses,
+} from "../models/OrganisationFileResponse";
 import { OrganisationFileRequest } from "../models/OrganisationFileRequest";
 import { NewOrganisationFile } from "../models/Database";
 import { createFileAndAttachToVectorStore } from "../OpenAIHandler";
@@ -74,6 +77,8 @@ export async function createOrganisationFile(
   };
 
   // Create in openAI
+  let training_status: OrganisationFileTrainingStatuses =
+    OrganisationFileTrainingStatuses.NOT_SYNCED;
   const { assistant_id, name: organisation_name } = await db
     .selectFrom("organisations")
     .select(["assistant_id", "name", "id"])
@@ -91,6 +96,7 @@ export async function createOrganisationFile(
         context
       );
       context.log(`Published new file to OpenAI`);
+      training_status = OrganisationFileTrainingStatuses.IN_PROGRESS;
     } catch (e) {
       context.error(`Error Publishing file to OpenAI`);
       context.error(e);
@@ -106,12 +112,15 @@ export async function createOrganisationFile(
   try {
     await db.insertInto("organisation_files").values(newFile).execute();
 
-    const jsonBody: OrganisationFileResponse = await db
-      .selectFrom("organisation_files")
-      .selectAll()
-      .where("organisation_id", "=", org_id)
-      .where("id", "=", newFile.id)
-      .executeTakeFirst();
+    const jsonBody: OrganisationFileResponse = {
+      ...(await db
+        .selectFrom("organisation_files")
+        .selectAll()
+        .where("organisation_id", "=", org_id)
+        .where("id", "=", newFile.id)
+        .executeTakeFirst()),
+      training_status,
+    };
     return { status: 200, jsonBody };
   } catch {
     return {

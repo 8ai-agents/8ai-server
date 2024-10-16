@@ -7,7 +7,12 @@ import {
 import { db } from "../DatabaseController";
 import { authenticateRequest } from "../AuthController";
 import { checkUserIsAdmin } from "../Utils";
-import { OrganisationFileResponse } from "../models/OrganisationFileResponse";
+import {
+  OrganisationFileResponse,
+  OrganisationFileTrainingStatuses,
+} from "../models/OrganisationFileResponse";
+import { OrganisationFile } from "../models/Database";
+import { getOpenAIVectorStoreFile } from "../OpenAIHandler";
 
 export async function getOrganisationFile(
   request: HttpRequest,
@@ -43,13 +48,53 @@ export async function getOrganisationFile(
   context.log(`Get Organisation File ${org_id} ${file_id}`);
 
   try {
-    const jsonBody: OrganisationFileResponse = await db
+    const file: OrganisationFile = await db
       .selectFrom("organisation_files")
       .selectAll()
       .where("organisation_id", "=", org_id)
       .where("id", "=", file_id)
       .executeTakeFirst();
-    if (jsonBody) {
+
+    if (file) {
+      let training_status: OrganisationFileTrainingStatuses =
+        OrganisationFileTrainingStatuses.NOT_SYNCED;
+      if (file.openai_id) {
+        // Get sync status from OpenAI
+        try {
+          const openaiFile = await getOpenAIVectorStoreFile(
+            await db
+              .selectFrom("organisations")
+              .select(["assistant_id"])
+              .where("id", "=", org_id)
+              .executeTakeFirst()
+              .then((org) => org.assistant_id),
+            file.openai_id
+          );
+          training_status =
+            openaiFile.status === "in_progress"
+              ? OrganisationFileTrainingStatuses.IN_PROGRESS
+              : openaiFile.status === "completed"
+              ? OrganisationFileTrainingStatuses.ACTIVE
+              : OrganisationFileTrainingStatuses.ERROR;
+        } catch (e) {
+          context.error(
+            `Error getting OpenAI file ${file.openai_id}. Deleting`
+          );
+          await db
+            .updateTable("organisation_files")
+            .set({ openai_id: undefined })
+            .where("id", "=", file.id)
+            .execute();
+          file.openai_id = undefined;
+          training_status = OrganisationFileTrainingStatuses.NOT_SYNCED;
+        }
+      }
+
+      const jsonBody: OrganisationFileResponse = {
+        ...file,
+        training_status,
+      };
+
       return { status: 200, jsonBody };
     } else {
       return {

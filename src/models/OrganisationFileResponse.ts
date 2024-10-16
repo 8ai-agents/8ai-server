@@ -6,4 +6,12 @@ export interface OrganisationFileResponse {
   content: string;
   created_at: number;
   updated_at: number;
+  training_status: OrganisationFileTrainingStatuses;
+}
+
+export enum OrganisationFileTrainingStatuses {
+  NOT_SYNCED = "NOT_SYNCED",
+  IN_PROGRESS = "IN_PROGRESS",
+  ACTIVE = "ACTIVE",
+  ERROR = "ERROR",
 }
