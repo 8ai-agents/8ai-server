@@ -25,6 +25,7 @@ import {
 import { authenticateRequest } from "../AuthController";
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import { ContactResponse } from "../models/ContactResponse";
+import { sendNewConversationAlert } from "../OneSignalHandler";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -168,7 +169,12 @@ export async function sendMessage(
       await saveMessageResponsesToDatabase(responses, false);
 
       if (isNewConversation) {
-        // TODO Send new conversation alert
+        // Send new conversation alert
+        await sendNewConversationAlert(
+          messageRequest.conversation_id,
+          organisation_id,
+          context
+        );
       }
 
       return {

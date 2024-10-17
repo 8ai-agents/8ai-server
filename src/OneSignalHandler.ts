@@ -7,7 +7,7 @@ import {
 } from "./models/Database";
 import * as OneSignal from "@onesignal/node-onesignal";
 import { ConversationResponse } from "./models/ConversationResponse";
-import { db } from "./DatabaseController";
+import { db, getFullConversation } from "./DatabaseController";
 import { format } from "timeago.js";
 import { ConversationsResponse } from "./models/ConversationsResponse";
 import { ConversationFeedbackResponse } from "./models/ConversationFeedbackResponse";
@@ -464,7 +464,8 @@ export const sendConversationFeedbackAlert = async (
 };
 
 export const sendNewConversationAlert = async (
-  conversation: ConversationResponse,
+  conversation_id: string,
+  organisation_id: string,
   context: InvocationContext
 ) => {
   // We fist check if any user is subscribed to new conversation warnings
@@ -472,7 +473,7 @@ export const sendNewConversationAlert = async (
     .selectFrom("notification_settings")
     .leftJoin("users", "notification_settings.user_id", "users.id")
     .leftJoin("user_roles", "user_roles.user_id", "users.id")
-    .where("user_roles.organisation_id", "=", conversation.organisation_id)
+    .where("user_roles.organisation_id", "=", organisation_id)
     .where("notification_settings.type", "in", [
       NotificationSettingsType.NEW_CONVERSATION,
       NotificationSettingsType.NEW_CONVERSATION_SMS,
@@ -482,33 +483,40 @@ export const sendNewConversationAlert = async (
     .select(["users.email", "users.phone", "notification_settings.type"])
     .execute();
 
-  if (data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)) {
-    const organisation = await db
-      .selectFrom("organisations")
-      .select(["name"])
-      .where("id", "=", conversation.organisation_id)
-      .executeTakeFirst();
-    // Send email
-    await sendNewConversationAlertEmail(
-      data
-        .filter((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)
-        .map((d) => d.email),
-      conversation,
-      organisation.name,
-      context
-    );
-  }
-  if (
-    data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS)
-  ) {
-    // Send email
-    await sendNewConversationAlertSMS(
-      data
-        .filter((d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS)
-        .map((d) => d.phone),
-      conversation,
-      context
-    );
+  if (data.length > 0) {
+    const conversation = await getFullConversation(conversation_id);
+    if (
+      data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)
+    ) {
+      const organisation = await db
+        .selectFrom("organisations")
+        .select(["name"])
+        .where("id", "=", conversation.organisation_id)
+        .executeTakeFirst();
+      // Send email
+      await sendNewConversationAlertEmail(
+        data
+          .filter((d) => d.type === NotificationSettingsType.NEW_CONVERSATION)
+          .map((d) => d.email),
+        conversation,
+        organisation.name,
+        context
+      );
+    }
+    if (
+      data.some((d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS)
+    ) {
+      // Send email
+      await sendNewConversationAlertSMS(
+        data
+          .filter(
+            (d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS
+          )
+          .map((d) => d.phone),
+        conversation,
+        context
+      );
+    }
   }
 };
 

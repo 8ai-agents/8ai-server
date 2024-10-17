@@ -9,10 +9,7 @@ import {
   SentimentAnalysisResult,
 } from "@azure/ai-language-text";
 import { ConversationResponse } from "../models/ConversationResponse";
-import {
-  sendNegativeSentimentWarning,
-  sendNewConversationAlert,
-} from "../OneSignalHandler";
+import { sendNegativeSentimentWarning } from "../OneSignalHandler";
 import { createAzureOpenAIClient } from "../OpenAIHandler";
 import { AzureOpenAI } from "openai";
 
@@ -87,8 +84,6 @@ export async function cronSummariseConversations(
         })
         .where("id", "=", conv_id)
         .execute();
-
-      await sendNewConversationAlert(fullConversation, context);
 
       await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error: unknown) {

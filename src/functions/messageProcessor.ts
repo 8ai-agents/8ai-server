@@ -16,6 +16,7 @@ import {
 } from "../models/Database";
 import { createID } from "../Utils";
 import { UsersInfoResponse } from "@slack/web-api";
+import { sendNewConversationAlert } from "../OneSignalHandler";
 
 export type SlackSlashMessageEvent = {
   organisation_id: string;
@@ -132,6 +133,7 @@ const processSlackBotMessage = async (
     );
 
     let existingConversationID = "";
+    let isNewConversation = false;
     const existingConversation = await checkGetConversationUsingSlackThreadID(
       data.thread_ts,
       user_id
@@ -151,6 +153,8 @@ const processSlackBotMessage = async (
           .where("id", "=", existingConversationID)
           .execute();
       }
+    } else {
+      isNewConversation = true;
     }
 
     let messageResponse: MessageResponse[] | undefined = undefined;
@@ -248,6 +252,15 @@ const processSlackBotMessage = async (
         }
         await saveMessageResponsesToDatabase(messageResponse, false);
       }
+    }
+
+    if (isNewConversation) {
+      // Send new conversation alert
+      await sendNewConversationAlert(
+        existingConversationID,
+        data.organisation_id,
+        context
+      );
     }
   } catch (error) {
     context.error("Error processing Slack message: ", error);
