@@ -19,7 +19,16 @@ export interface ContactTable {
   email: string | undefined;
   phone: string | undefined;
   slack_id: string | undefined;
+  created_at: number;
   updated_at: number;
+  browser: string | undefined;
+  ip: string | undefined;
+  origin: string | undefined;
+  location_estimate_string: string | undefined;
+  location_estimate_lat: string | undefined;
+  location_estimate_lon: string | undefined;
+  language: string | undefined;
+  language_raw: string | undefined;
 }
 
 export type Contact = Selectable<ContactTable>;

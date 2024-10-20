@@ -1,0 +1,9 @@
+ALTER TABLE contacts ADD COLUMN browser VARCHAR(1024);
+ALTER TABLE contacts ADD COLUMN ip VARCHAR(48);
+ALTER TABLE contacts ADD COLUMN origin VARCHAR(256);
+ALTER TABLE contacts ADD COLUMN location_estimate_string VARCHAR(512);
+ALTER TABLE contacts ADD COLUMN location_estimate_lat VARCHAR(128);
+ALTER TABLE contacts ADD COLUMN location_estimate_lon VARCHAR(128);
+ALTER TABLE contacts ADD COLUMN language VARCHAR(16);
+ALTER TABLE contacts ADD COLUMN language_raw VARCHAR(128);
+ALTER TABLE contacts ADD COLUMN created_at BIGINT;

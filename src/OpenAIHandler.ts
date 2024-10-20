@@ -661,6 +661,7 @@ const saveContactDetails = async (
           name: details.name,
           email: details.email,
           phone: details.phone,
+          created_at: Date.now(),
         })
         .execute();
     } else {

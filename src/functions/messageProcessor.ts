@@ -34,6 +34,12 @@ export type SlackBotMessageEvent = {
   thread_ts: string;
 };
 
+export type IPLookupMessageEvent = {
+  contact_id: string;
+  ip: string;
+  language_raw: string;
+};
+
 export async function messageProcessor(
   event: EventGridEvent,
   context: InvocationContext
@@ -46,6 +52,10 @@ export async function messageProcessor(
     // This is for a bot message
     context.log("Incoming SlackBot Message: ", event);
     await processSlackBotMessage(event, context);
+  } else if (event.eventType === "Contact.IPLookup") {
+    // This is for an IP lookup request
+    context.log("Incoming IP Lookup Request Message: ", event);
+    await processIPLookupMessage(event, context);
   } else {
     context.log("Don't know how to process this event: ", event);
   }
@@ -377,6 +387,117 @@ const processSlackSlashMessage = async (
   }
 };
 
+const processIPLookupMessage = async (
+  event: EventGridEvent,
+  context: InvocationContext
+) => {
+  try {
+    const data = event.data as IPLookupMessageEvent;
+    let location_estimate_string: string;
+    let location_estimate_lat: string;
+    let location_estimate_lon: string;
+    let language: string;
+
+    if (data.ip) {
+      // Process IP address
+      try {
+        const ipLookupResponse = await fetch(
+          `https://ipinfo.io/${data.ip}?token=3e1f700c372e45`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!ipLookupResponse.ok) {
+          throw new Error(
+            `Failed to fetch IP info: ${ipLookupResponse.statusText}`
+          );
+        }
+
+        const ipInfo: {
+          ip: string;
+          hostname: string;
+          city: string;
+          region: string;
+          country: string;
+          loc: string;
+          org: string;
+          postal: string;
+          timezone: string;
+        } = await ipLookupResponse.json();
+
+        location_estimate_string = [
+          ipInfo.city,
+          ipInfo.region,
+          ipInfo.postal,
+          ipInfo.country,
+        ]
+          .filter((l) => l)
+          .join(", ");
+        if (ipInfo.loc && ipInfo.loc.split(",").length === 2) {
+          location_estimate_lat = ipInfo.loc.split(",")[0];
+          location_estimate_lon = ipInfo.loc.split(",")[0];
+        }
+
+        context.log(
+          `Parsed IP Info for ${data.contact_id}: ${location_estimate_string}`
+        );
+      } catch (error) {
+        context.error(`Error parsing IP location for ${data.contact_id}`);
+        context.error(error);
+      }
+    }
+
+    if (data.language_raw) {
+      // Try deconstruct languages
+      try {
+        const languageNames = new Intl.DisplayNames(["en"], {
+          type: "language",
+        });
+        if (data.language_raw.includes(",")) {
+          if (data.language_raw.split(",")[0].includes(";")) {
+            language = languageNames.of(
+              data.language_raw.split(",")[0].split(";")[0]
+            );
+          } else {
+            language = languageNames.of(data.language_raw.split(",")[0]);
+          }
+        } else {
+          if (data.language_raw.includes(";")) {
+            language = languageNames.of(data.language_raw.split(";")[0]);
+          } else {
+            language = languageNames.of(data.language_raw);
+          }
+        }
+        context.log(`Parsed clean language ${data.contact_id}: ${language}`);
+      } catch (error) {
+        context.error(`Error parsing IP location for ${data.contact_id}`);
+        context.error(error);
+      }
+    }
+    // Save data
+    await db
+      .updateTable("contacts")
+      .set({
+        language,
+        location_estimate_string,
+        location_estimate_lat,
+        location_estimate_lon,
+      })
+      .where("id", "=", data.contact_id);
+  } catch (error) {
+    context.error(`Error processing IP Lookup message: `, error);
+    await postSlashResponseToSlack(
+      event.data.response_url.toString(),
+      "An error occured wth this message, please contact your adminstrator.",
+      context
+    );
+  }
+};
+
 const postBotResponseToSlack = async (
   data: {
     channel: string;
@@ -475,6 +596,7 @@ const checkGetContactID = async (
       email: slack_email,
       phone: slack_phone,
       slack_id: slack_id,
+      created_at: Date.now(),
     };
     await db.insertInto("contacts").values(newContact).execute();
   }

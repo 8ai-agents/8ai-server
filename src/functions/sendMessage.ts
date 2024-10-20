@@ -26,6 +26,12 @@ import { authenticateRequest } from "../AuthController";
 import { ConversationsResponse } from "../models/ConversationsResponse";
 import { ContactResponse } from "../models/ContactResponse";
 import { sendNewConversationAlert } from "../OneSignalHandler";
+import {
+  AzureKeyCredential,
+  EventGridPublisherClient,
+  SendEventGridEventInput,
+} from "@azure/eventgrid";
+import { IPLookupMessageEvent } from "./messageProcessor";
 
 export async function sendMessage(
   request: HttpRequest,
@@ -78,8 +84,45 @@ export async function sendMessage(
         .values({
           ...newContact,
           organisation_id: messageRequest.organisation_id,
+          browser: request.headers.get("user-agent"),
+          ip: request.headers.get("X-Forwarded-For"),
+          origin: request.headers.get("origin"),
+          language_raw: request.headers.get("accept-language"),
+          created_at: Date.now(),
         } as NewContact)
         .execute();
+
+      // Message is a Slack Message and is not sent by a bot
+      const eventPayload: SendEventGridEventInput<IPLookupMessageEvent>[] = [
+        {
+          eventType: "Contact.IPLookup",
+          subject: `contact/ip_lookup/${newContact.id}`,
+          dataVersion: "1.0",
+          data: {
+            contact_id: newContact.id,
+            language_raw: request.headers.get("accept-language"),
+            ip: request.headers.get("X-Forwarded-For"),
+          },
+        },
+      ];
+
+      // Publish message to EventGrid
+      const topicEndpoint =
+        "https://8ai-messaging-topic.australiaeast-1.eventgrid.azure.net/api/events";
+      const topicKey = process.env.AZURE_MESSAGE_PROCESSOR_TOPIC_KEY;
+
+      const eventGridClient = new EventGridPublisherClient(
+        topicEndpoint,
+        "EventGrid",
+        new AzureKeyCredential(topicKey)
+      );
+
+      try {
+        await eventGridClient.send(eventPayload);
+      } catch (e) {
+        context.error("Error IP update request to queue");
+      }
+
       const converationToSave: NewConversation = {
         id: newConversation.id,
         organisation_id: messageRequest.organisation_id,
