@@ -401,6 +401,7 @@ const processIPLookupMessage = async (
     if (data.ip) {
       // Process IP address
       try {
+        context.log(`Looking up ip information for ${data.ip}`);
         const ipLookupResponse = await fetch(
           `https://ipinfo.io/${data.ip}?token=3e1f700c372e45`,
           {
@@ -454,6 +455,7 @@ const processIPLookupMessage = async (
     if (data.language_raw) {
       // Try deconstruct languages
       try {
+        context.log(`Parsing language ${data.language_raw}`);
         const languageNames = new Intl.DisplayNames(["en"], {
           type: "language",
         });
@@ -474,7 +476,7 @@ const processIPLookupMessage = async (
         }
         context.log(`Parsed clean language ${data.contact_id}: ${language}`);
       } catch (error) {
-        context.error(`Error parsing IP location for ${data.contact_id}`);
+        context.error(`Error parsing clean language for  ${data.contact_id}`);
         context.error(error);
       }
     }
@@ -487,7 +489,8 @@ const processIPLookupMessage = async (
         location_estimate_lat,
         location_estimate_lon,
       })
-      .where("id", "=", data.contact_id);
+      .where("id", "=", data.contact_id)
+      .execute();
   } catch (error) {
     context.error(`Error processing IP Lookup message: `, error);
     await postSlashResponseToSlack(

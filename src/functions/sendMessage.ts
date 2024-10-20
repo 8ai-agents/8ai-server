@@ -78,6 +78,10 @@ export async function sendMessage(
       );
       messageRequest.conversation_id = newConversation.id;
 
+      let ip = request.headers.get("X-Forwarded-For");
+      if (ip.includes(":")) {
+        ip = ip.split(":")[0];
+      }
       // Save to db
       await db
         .insertInto("contacts")
@@ -85,7 +89,7 @@ export async function sendMessage(
           ...newContact,
           organisation_id: messageRequest.organisation_id,
           browser: request.headers.get("user-agent"),
-          ip: request.headers.get("X-Forwarded-For"),
+          ip,
           origin: request.headers.get("origin"),
           language_raw: request.headers.get("accept-language"),
           created_at: Date.now(),
@@ -101,7 +105,7 @@ export async function sendMessage(
           data: {
             contact_id: newContact.id,
             language_raw: request.headers.get("accept-language"),
-            ip: request.headers.get("X-Forwarded-For"),
+            ip,
           },
         },
       ];
