@@ -440,7 +440,7 @@ const processIPLookupMessage = async (
           .join(", ");
         if (ipInfo.loc && ipInfo.loc.split(",").length === 2) {
           location_estimate_lat = ipInfo.loc.split(",")[0];
-          location_estimate_lon = ipInfo.loc.split(",")[0];
+          location_estimate_lon = ipInfo.loc.split(",")[1];
         }
 
         context.log(
