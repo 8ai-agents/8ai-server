@@ -8,13 +8,15 @@ import { authenticateRequest } from "../AuthController";
 import { db } from "../DatabaseController";
 import { ContactResponse } from "../models/ContactResponse";
 import { ConversationStatusType } from "../models/Database";
+import { checkUserIsAdmin } from "../Utils";
 
 export async function getContact(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
+  let email;
   try {
-    await authenticateRequest(request);
+    email = await authenticateRequest(request);
   } catch {
     return { status: 401 };
   }
@@ -34,6 +36,10 @@ export async function getContact(
     .where("id", "=", cont_id)
     .selectAll()
     .executeTakeFirst();
+
+  // They need to be an admin of the organisation
+  if (!checkUserIsAdmin(contactData.organisation_id, email))
+    return { status: 403 };
 
   if (contactData) {
     const conversationData = await db
