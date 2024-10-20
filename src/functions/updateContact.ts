@@ -26,7 +26,7 @@ export async function updateContactDetails(
           updated_at: Date.now(),
         })
         .where("id", "=", contactRequest.id)
-        .returning(["id", "name", "email", "phone", "updated_at"])
+        .returning(["id", "name", "email", "phone", "updated_at", "created_at"])
         .executeTakeFirst()),
       conversations: undefined,
     };

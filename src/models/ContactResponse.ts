@@ -13,6 +13,7 @@ export class ContactResponse {
   email: string;
   phone: string;
   conversations: ConversationsResponse[] | undefined = undefined;
+  created_at: number | undefined = undefined;
   updated_at: number | undefined = undefined;
 
   constructor() {
@@ -22,5 +23,6 @@ export class ContactResponse {
       separator: " ",
       style: "capital",
     });
+    this.created_at = Date.now();
   }
 }

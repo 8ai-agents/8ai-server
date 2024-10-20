@@ -44,6 +44,7 @@ export async function getContacts(
       email: d.email,
       phone: d.phone,
       updated_at: d.updated_at,
+      created_at: d.created_at,
       conversations: undefined,
     };
   });

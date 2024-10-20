@@ -54,6 +54,7 @@ export async function getContact(
       email: contactData.email,
       phone: contactData.phone,
       updated_at: contactData.updated_at,
+      created_at: contactData.created_at,
       conversations: conversationData.map((conv) => {
         return {
           id: conv.id,

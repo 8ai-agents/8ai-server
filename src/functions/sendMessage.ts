@@ -92,7 +92,6 @@ export async function sendMessage(
           ip,
           origin: request.headers.get("origin"),
           language_raw: request.headers.get("accept-language"),
-          created_at: Date.now(),
         } as NewContact)
         .execute();
 
