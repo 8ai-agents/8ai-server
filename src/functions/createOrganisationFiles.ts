@@ -23,7 +23,7 @@ import { OrganisationFilesResponse } from "../models/OrganisationFilesResponse";
 
 export async function createOrganisationFiles(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {
@@ -123,7 +123,7 @@ export async function createOrganisationFiles(
   }
 
   context.log(
-    `Create ${filesToCreate.length} files and update ${filesToUpdate.length} files for ${org_id}`
+    `Create ${filesToCreate.length} files and update ${filesToUpdate.length} files for ${org_id}`,
   );
 
   if (assistant_id) {
@@ -137,7 +137,7 @@ export async function createOrganisationFiles(
           org_id,
           organisation_name,
           openai,
-          context
+          context,
         );
       } catch (e) {
         context.error(`Error Publishing file to OpenAI`);
@@ -160,7 +160,7 @@ export async function createOrganisationFiles(
           org_id,
           organisation_name,
           openai,
-          context
+          context,
         );
       } catch (e) {
         context.error(`Error Publishing file to OpenAI`);
@@ -191,7 +191,7 @@ export async function createOrganisationFiles(
       .where(
         "id",
         "in",
-        filesToCreate.map((f) => f.id).concat(filesToUpdate.map((f) => f.id))
+        filesToCreate.map((f) => f.id).concat(filesToUpdate.map((f) => f.id)),
       )
       .execute();
     return { status: 200, jsonBody };

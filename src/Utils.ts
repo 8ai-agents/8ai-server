@@ -5,7 +5,7 @@ import { UserRoleType } from "./models/Database";
 export const checkUserIsAdmin = async (
   org_id: string,
   email: string,
-  superAdminOnly: boolean = false
+  superAdminOnly: boolean = false,
 ) => {
   const roles = await db
     .selectFrom("user_roles")
@@ -20,7 +20,7 @@ export const checkUserIsAdmin = async (
     return (
       roles.some((r) => r.role === UserRoleType.SUPER_ADMIN) ||
       roles.some(
-        (r) => r.role === UserRoleType.ADMIN && r.organisation_id === org_id
+        (r) => r.role === UserRoleType.ADMIN && r.organisation_id === org_id,
       )
     );
   }
@@ -30,12 +30,12 @@ export const convertSentimentToString = (sentiment: number) => {
   return sentiment > 2
     ? "Very Positive"
     : sentiment > 0
-    ? "Positive"
-    : sentiment < -2
-    ? "Very Negative"
-    : sentiment < -0.5
-    ? "Negative"
-    : "Neutral";
+      ? "Positive"
+      : sentiment < -2
+        ? "Very Negative"
+        : sentiment < -0.5
+          ? "Negative"
+          : "Neutral";
 };
 
 export const convertResolutionToString = (resolution: number) => {
@@ -43,12 +43,12 @@ export const convertResolutionToString = (resolution: number) => {
   return resolution >= 100
     ? "Completely Resolved"
     : resolution >= 70
-    ? "Resolved"
-    : resolution >= 30
-    ? "Unresolved"
-    : "Not at all resolved";
+      ? "Resolved"
+      : resolution >= 30
+        ? "Unresolved"
+        : "Not at all resolved";
 };
 
 export const createID = (
-  type: "cont" | "conv" | "msg" | "org" | "user" | "file"
+  type: "cont" | "conv" | "msg" | "org" | "user" | "file",
 ) => `${type}_${randomBytes(16).toString("hex")}`;

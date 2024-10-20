@@ -15,7 +15,7 @@ import { SlackSlashMessageEvent } from "./messageProcessor";
 
 export async function sendMessageSlackSlash(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const organisation_id = request.params.org_id as string;
@@ -73,7 +73,7 @@ export async function sendMessageSlackSlash(
       const client = new EventGridPublisherClient(
         topicEndpoint,
         "EventGrid",
-        new AzureKeyCredential(topicKey)
+        new AzureKeyCredential(topicKey),
       );
 
       const events: SendEventGridEventInput<SlackSlashMessageEvent>[] = [
@@ -94,7 +94,7 @@ export async function sendMessageSlackSlash(
       try {
         await client.send(events);
         context.log(
-          `Published message from Slack Slash on event queue ${messageText}`
+          `Published message from Slack Slash on event queue ${messageText}`,
         );
         return {
           status: 200,
@@ -103,7 +103,7 @@ export async function sendMessageSlackSlash(
             text: "Assistant is thinking...",
           },
         };
-      } catch (error) {
+      } catch {
         return {
           status: 500,
           jsonBody: {

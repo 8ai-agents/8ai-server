@@ -11,7 +11,7 @@ import { checkUserIsAdmin } from "../Utils";
 
 export async function updateConversationStatus(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const conv_id = request.params.conv_id as string;
   const new_status = request.params.new_status as ConversationStatusType;

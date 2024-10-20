@@ -17,7 +17,7 @@ import { createFileAndAttachToVectorStore } from "../OpenAIHandler";
 
 export async function createOrganisationFile(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {
@@ -50,7 +50,7 @@ export async function createOrganisationFile(
       .execute();
     if (
       existingURls.some(
-        (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase()
+        (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase(),
       )
     ) {
       return {
@@ -58,7 +58,7 @@ export async function createOrganisationFile(
         jsonBody: {
           error: `There is another file ${
             existingURls.find(
-              (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase()
+              (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase(),
             ).name
           } already with this URL`,
         },
@@ -93,7 +93,7 @@ export async function createOrganisationFile(
         org_id,
         organisation_name,
         undefined,
-        context
+        context,
       );
       context.log(`Published new file to OpenAI`);
       training_status = OrganisationFileTrainingStatuses.IN_PROGRESS;

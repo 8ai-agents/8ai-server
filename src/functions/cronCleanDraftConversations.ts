@@ -3,7 +3,7 @@ import { db } from "../DatabaseController";
 
 export async function cronCleanDraftConversations(
   myTimer: Timer,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<void> {
   context.log(`Cleaning Draft Conversations`);
   const oneHourAgo: number = Date.now() - 1000 * 60 * 60 * 1; // More than 1 hour ago
@@ -13,7 +13,7 @@ export async function cronCleanDraftConversations(
     .execute();
 
   const conversationsToDelete = allConversations.filter(
-    (c) => c.status == "DRAFT" && c.last_message_at < oneHourAgo
+    (c) => c.status == "DRAFT" && c.last_message_at < oneHourAgo,
   );
 
   if (conversationsToDelete.length > 0) {
@@ -34,7 +34,7 @@ export async function cronCleanDraftConversations(
       .where(
         "conversation_id",
         "in",
-        conversationsToDelete.map((c) => c.id)
+        conversationsToDelete.map((c) => c.id),
       )
       .execute();
 
@@ -43,7 +43,7 @@ export async function cronCleanDraftConversations(
       .where(
         "id",
         "in",
-        conversationsToDelete.map((c) => c.id)
+        conversationsToDelete.map((c) => c.id),
       )
       .execute();
 
@@ -53,7 +53,7 @@ export async function cronCleanDraftConversations(
       .execute();
 
     context.log(
-      `Cleaned Draft Conversations - Deleted ${contactsToDelete.length} conversations and ${contactsToDelete.length} contacts`
+      `Cleaned Draft Conversations - Deleted ${contactsToDelete.length} conversations and ${contactsToDelete.length} contacts`,
     );
   } else {
     context.log(`Cleaned Draft Conversations - No conversations to delete`);

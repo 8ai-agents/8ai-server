@@ -11,7 +11,7 @@ import { createAzureOpenAIClient } from "../OpenAIHandler";
 
 export async function deleteOrganisationFiles(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {
@@ -49,7 +49,7 @@ export async function deleteOrganisationFiles(
     } catch {
       // Do nothing major, we can accept this erorr
       context.error(
-        `Error deleting organisation file from OpenAI: ${fileToDelete.openai_id} (internal ID ${fileToDelete.id})`
+        `Error deleting organisation file from OpenAI: ${fileToDelete.openai_id} (internal ID ${fileToDelete.id})`,
       );
     }
   }

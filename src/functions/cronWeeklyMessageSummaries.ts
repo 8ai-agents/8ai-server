@@ -8,7 +8,7 @@ import { sendWeeklySummary } from "../OneSignalHandler";
 
 export async function cronWeeklyMessageSummaries(
   myTimer: Timer,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<void> {
   context.log("Sending Weekly Message Summaries");
 
@@ -19,7 +19,7 @@ export async function cronWeeklyMessageSummaries(
     .leftJoin(
       "notification_settings",
       "users.id",
-      "notification_settings.user_id"
+      "notification_settings.user_id",
     )
     .leftJoin("user_roles", "user_roles.user_id", "users.id")
     .select([
@@ -33,7 +33,7 @@ export async function cronWeeklyMessageSummaries(
     .where(
       "notification_settings.type",
       "=",
-      NotificationSettingsType.WEEKLY_SUMMARY
+      NotificationSettingsType.WEEKLY_SUMMARY,
     )
     .where("notification_settings.enabled", "=", true)
     .execute();
@@ -72,25 +72,25 @@ export async function cronWeeklyMessageSummaries(
         await Promise.all(
           allConversationIDs.map((c) => {
             return getFullConversation(c.id);
-          })
+          }),
         )
       ).filter((c) => c.messages?.length > 0);
 
       if (fullConversations.length > 0) {
         context.log(
-          `Sending weekly Message Summaries - sending orgId: ${orgId}`
+          `Sending weekly Message Summaries - sending orgId: ${orgId}`,
         );
         await sendWeeklySummary(
           allOrgIDNameMap[orgId],
           fullConversations,
           users,
-          context
+          context,
         );
         context.log(`Sending weekly Message Summaries - sent orgId: ${orgId}`);
       }
     } catch (e) {
       context.error(
-        `Sending weekly Message Summaries - Error sending weekly summary to org ${orgId}} - ${e}`
+        `Sending weekly Message Summaries - Error sending weekly summary to org ${orgId}} - ${e}`,
       );
     }
   }

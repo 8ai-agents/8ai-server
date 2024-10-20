@@ -25,7 +25,7 @@ export const sendDailySummary = async (
   organisation_name: string,
   conversations: ConversationResponse[],
   users: User[],
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   const oneSignal = getClient();
 
@@ -53,14 +53,14 @@ export const sendDailySummary = async (
               summary: conversation.summary,
               sentiment: convertSentimentToString(conversation.sentiment),
               resolution_estimate: convertResolutionToString(
-                conversation.resolution_estimation
+                conversation.resolution_estimation,
               ),
               message_count: conversation.messages.length,
               last_message_at: format(new Date(conversation.last_message_at)),
             };
           }),
       },
-      context
+      context,
     );
 
     await oneSignal.createNotification(email).then(
@@ -68,7 +68,7 @@ export const sendDailySummary = async (
         context.log(response);
         context.log(`Successfully sent daily summary to ${users.length} users`);
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
@@ -77,7 +77,7 @@ export const sendWeeklySummary = async (
   organisation_name: string,
   conversations: ConversationResponse[],
   users: User[],
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   const oneSignal = getClient();
 
@@ -105,24 +105,24 @@ export const sendWeeklySummary = async (
               summary: conversation.summary,
               sentiment: convertSentimentToString(conversation.sentiment),
               resolution_estimate: convertResolutionToString(
-                conversation.resolution_estimation
+                conversation.resolution_estimation,
               ),
               message_count: conversation.messages.length,
               last_message_at: format(new Date(conversation.last_message_at)),
             };
           }),
       },
-      context
+      context,
     );
 
     await oneSignal.createNotification(email).then(
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent weekly summary to ${users.length} users`
+          `Successfully sent weekly summary to ${users.length} users`,
         );
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
@@ -137,7 +137,7 @@ export const sendDailySummaryToSuperAdmins = async (
     role: UserRoleType;
   }[],
   organisations: { id: string; name: string }[],
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   const oneSignal = getClient();
 
@@ -159,7 +159,7 @@ export const sendDailySummaryToSuperAdmins = async (
   for (const org of organisations) {
     if (conversations.some((c) => c.organisation_id === org.id)) {
       const orgConversations = conversations.filter(
-        (c) => c.organisation_id === org.id
+        (c) => c.organisation_id === org.id,
       );
       organisationsData.push({
         id: org.id,
@@ -173,7 +173,7 @@ export const sendDailySummaryToSuperAdmins = async (
             summary: conversation.summary,
             sentiment: convertSentimentToString(conversation.sentiment),
             resolution_estimate: convertResolutionToString(
-              conversation.resolution_estimation
+              conversation.resolution_estimation,
             ),
             last_message_at: format(new Date(conversation.last_message_at)),
           };
@@ -195,23 +195,23 @@ export const sendDailySummaryToSuperAdmins = async (
       total_count: conversations.length,
       organisations: organisationsData,
     },
-    context
+    context,
   );
 
   await oneSignal.createNotification(email).then(
     (response) => {
       context.log(response);
       context.log(
-        `Successfully sent daily summary to ${superAdmins.length} users`
+        `Successfully sent daily summary to ${superAdmins.length} users`,
       );
     },
-    (error) => context.error(error)
+    (error) => context.error(error),
   );
 };
 
 export const sendNegativeSentimentWarning = async (
   conversation: ConversationResponse,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   // We fist check if any user is subscribed to negative sentiment warnings
   const emails = await db
@@ -220,14 +220,14 @@ export const sendNegativeSentimentWarning = async (
     .leftJoin(
       "notification_settings",
       "notification_settings.user_id",
-      "users.id"
+      "users.id",
     )
     .leftJoin("user_roles", "user_roles.user_id", "users.id")
     .where("user_roles.organisation_id", "=", conversation.organisation_id)
     .where(
       "notification_settings.type",
       "=",
-      NotificationSettingsType.NEGATIVE_SENTIMENT
+      NotificationSettingsType.NEGATIVE_SENTIMENT,
     )
     .where("notification_settings.enabled", "=", true)
     .execute();
@@ -268,7 +268,7 @@ export const sendNegativeSentimentWarning = async (
         summary: conversation.summary,
         sentiment: convertSentimentToString(conversation.sentiment),
         resolution_estimate: convertResolutionToString(
-          conversation.resolution_estimation
+          conversation.resolution_estimation,
         ),
         message_count: conversation.messages.length,
         last_message_at: format(new Date(conversation.last_message_at)),
@@ -281,24 +281,24 @@ export const sendNegativeSentimentWarning = async (
             };
           }),
       },
-      context
+      context,
     );
 
     await oneSignal.createNotification(email).then(
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent conversation sentiment warning for ${conversation.id}`
+          `Successfully sent conversation sentiment warning for ${conversation.id}`,
         );
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
 
 export const sendContactDetailsAlert = async (
   conversation: ConversationResponse,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   // We fist check if any user is subscribed to contact details left warnings
   const emails = await db
@@ -307,14 +307,14 @@ export const sendContactDetailsAlert = async (
     .leftJoin(
       "notification_settings",
       "notification_settings.user_id",
-      "users.id"
+      "users.id",
     )
     .leftJoin("user_roles", "user_roles.user_id", "users.id")
     .where("user_roles.organisation_id", "=", conversation.organisation_id)
     .where(
       "notification_settings.type",
       "=",
-      NotificationSettingsType.CONTACT_DETAILS_LEFT
+      NotificationSettingsType.CONTACT_DETAILS_LEFT,
     )
     .where("notification_settings.enabled", "=", true)
     .execute();
@@ -357,7 +357,7 @@ export const sendContactDetailsAlert = async (
         last_message_at: format(new Date(conversation.last_message_at)),
         sentiment: convertSentimentToString(conversation.sentiment),
         resolution_estimate: convertResolutionToString(
-          conversation.resolution_estimation
+          conversation.resolution_estimation,
         ),
         messages: conversation.messages
           .sort((a, b) => a.created_at - b.created_at)
@@ -368,17 +368,17 @@ export const sendContactDetailsAlert = async (
             };
           }),
       },
-      context
+      context,
     );
 
     await oneSignal.createNotification(email).then(
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent conversation sentiment warning for ${conversation.id}`
+          `Successfully sent conversation sentiment warning for ${conversation.id}`,
         );
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
@@ -386,7 +386,7 @@ export const sendContactDetailsAlert = async (
 export const sendConversationFeedbackAlert = async (
   feedback: ConversationFeedbackResponse,
   conversation: ConversationResponse,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   // We fist check if any user is subscribed to contact details left warnings
   const allSuperAdminEmails = await db
@@ -436,7 +436,7 @@ export const sendConversationFeedbackAlert = async (
         last_message_at: format(new Date(conversation.last_message_at)),
         sentiment: convertSentimentToString(conversation.sentiment),
         resolution_estimate: convertResolutionToString(
-          conversation.resolution_estimation
+          conversation.resolution_estimation,
         ),
         feedback,
         messages: conversation.messages
@@ -448,17 +448,17 @@ export const sendConversationFeedbackAlert = async (
             };
           }),
       },
-      context
+      context,
     );
 
     await oneSignal.createNotification(email).then(
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent conversation feedback alert for ${conversation.id}`
+          `Successfully sent conversation feedback alert for ${conversation.id}`,
         );
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
@@ -466,7 +466,7 @@ export const sendConversationFeedbackAlert = async (
 export const sendNewConversationAlert = async (
   conversation_id: string,
   organisation_id: string,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   // We fist check if any user is subscribed to new conversation warnings
   const data = await db
@@ -500,7 +500,7 @@ export const sendNewConversationAlert = async (
           .map((d) => d.email),
         conversation,
         organisation.name,
-        context
+        context,
       );
     }
     if (
@@ -510,11 +510,11 @@ export const sendNewConversationAlert = async (
       await sendNewConversationAlertSMS(
         data
           .filter(
-            (d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS
+            (d) => d.type === NotificationSettingsType.NEW_CONVERSATION_SMS,
           )
           .map((d) => d.phone),
         conversation,
-        context
+        context,
       );
     }
   }
@@ -524,7 +524,7 @@ export const sendNewConversationAlertEmail = async (
   emails: string[],
   conversation: ConversationResponse,
   organisation_name: string,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   if (emails.length > 0) {
     // There is at least someone to send the notification to
@@ -557,7 +557,7 @@ export const sendNewConversationAlertEmail = async (
         last_message_at: format(new Date(conversation.last_message_at)),
         sentiment: convertSentimentToString(conversation.sentiment),
         resolution_estimate: convertResolutionToString(
-          conversation.resolution_estimation
+          conversation.resolution_estimation,
         ),
         messages: conversation.messages
           .sort((a, b) => a.created_at - b.created_at)
@@ -568,17 +568,17 @@ export const sendNewConversationAlertEmail = async (
             };
           }),
       },
-      context
+      context,
     );
 
     await oneSignal.createNotification(email).then(
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent new conversation email warning for ${conversation.id}`
+          `Successfully sent new conversation email warning for ${conversation.id}`,
         );
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
@@ -586,7 +586,7 @@ export const sendNewConversationAlertEmail = async (
 export const sendNewConversationAlertSMS = async (
   numbers: string[],
   conversation: ConversationResponse,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   const activeNumbers = numbers
     .filter((number) => number)
@@ -609,17 +609,17 @@ export const sendNewConversationAlertSMS = async (
       (response) => {
         context.log(response);
         context.log(
-          `Successfully sent new conversation sms warning for ${conversation.id}`
+          `Successfully sent new conversation sms warning for ${conversation.id}`,
         );
       },
-      (error) => context.error(error)
+      (error) => context.error(error),
     );
   }
 };
 
 const constrainCustomDataToSize = (
   customData: any,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   // The payload may include up to 10 kilobytes for email messages.
   let result = JSON.parse(JSON.stringify(customData));
@@ -639,7 +639,7 @@ const constrainCustomDataToSize = (
       result.conversations = customData.conversations.map(
         (conversation: any) => {
           return { ...conversation, summary: "" };
-        }
+        },
       );
     }
     if (result.messages) {

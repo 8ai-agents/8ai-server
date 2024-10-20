@@ -42,7 +42,7 @@ export type IPLookupMessageEvent = {
 
 export async function messageProcessor(
   event: EventGridEvent,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<void> {
   if (event.eventType === "Message.Slack") {
     // This is for a slash command
@@ -63,7 +63,7 @@ export async function messageProcessor(
 
 const processSlackBotMessage = async (
   event: EventGridEvent,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   const { bot_token, internal_user_list } = await db
     .selectFrom("organisation_slack")
@@ -83,7 +83,7 @@ const processSlackBotMessage = async (
           Authorization: `Bearer ${bot_token}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-      }
+      },
     ).then((res) => res.json());
 
     const channelName = channelInfo.channel.name;
@@ -115,7 +115,7 @@ const processSlackBotMessage = async (
           .some((id) => data.message.includes(`<@${id}>`)))
     ) {
       context.log(
-        `Ignoring message from internal user: ${data.user_id} ${slackUser.real_name} ${slackUser.profile?.email}`
+        `Ignoring message from internal user: ${data.user_id} ${slackUser.real_name} ${slackUser.profile?.email}`,
       );
 
       // Interrupt the conversation
@@ -139,14 +139,14 @@ const processSlackBotMessage = async (
       slackUser.real_name,
       slackUser.profile?.email,
       slackUser.profile?.phone,
-      data.organisation_id
+      data.organisation_id,
     );
 
     let existingConversationID = "";
     let isNewConversation = false;
     const existingConversation = await checkGetConversationUsingSlackThreadID(
       data.thread_ts,
-      user_id
+      user_id,
     );
 
     if (existingConversation && existingConversation.id) {
@@ -185,7 +185,7 @@ const processSlackBotMessage = async (
           assistant_id,
           system_prompt,
           contact_id,
-          context
+          context,
         );
         messageResponse = openAIResponseData;
       } else {
@@ -194,12 +194,12 @@ const processSlackBotMessage = async (
           assistant_id,
           system_prompt,
           data.message.toString(),
-          context
+          context,
         );
         messageResponse = openAIResponseData.response;
         existingConversationID = openAIResponseData.thread_id.replace(
           "thread_",
-          "conv_"
+          "conv_",
         );
         // Save new conversation with correct OpenAI thread ID
         const newConversation: NewConversation = {
@@ -223,7 +223,7 @@ const processSlackBotMessage = async (
       if (citationsWithURLs.length > 0) {
         // Process citations with URLs
         response += `\n\nThese links might help you:\n${citationsWithURLs.join(
-          "\n"
+          "\n",
         )}`;
       }
       response +=
@@ -236,7 +236,7 @@ const processSlackBotMessage = async (
           thread_ts: data.thread_ts,
         },
         bot_token,
-        context
+        context,
       );
     }
 
@@ -269,7 +269,7 @@ const processSlackBotMessage = async (
       await sendNewConversationAlert(
         existingConversationID,
         data.organisation_id,
-        context
+        context,
       );
     }
   } catch (error) {
@@ -281,14 +281,14 @@ const processSlackBotMessage = async (
         thread_ts: event.data.thread_ts.toString(),
       },
       bot_token,
-      context
+      context,
     );
   }
 };
 
 const processSlackSlashMessage = async (
   event: EventGridEvent,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   /// Process
   try {
@@ -304,7 +304,7 @@ const processSlackSlashMessage = async (
       assistant_id,
       system_prompt,
       data.message.toString(),
-      context
+      context,
     );
 
     let response = openAIResponseData.response.map((r) => r.message).join("\n");
@@ -314,7 +314,7 @@ const processSlackSlashMessage = async (
     if (citationsWithURLs.length > 0) {
       // Process citations with URLs
       response += `\n\nThese links might help you:\n${citationsWithURLs.join(
-        "\n"
+        "\n",
       )}`;
     }
     response +=
@@ -327,14 +327,14 @@ const processSlackSlashMessage = async (
       data.user_name,
       "",
       "",
-      data.organisation_id
+      data.organisation_id,
     );
 
     // Update conversation
     let conversation_id = "";
     const existingConversation = await checkGetConversationUsingSlackThreadID(
       data.response_url,
-      undefined
+      undefined,
     );
     if (existingConversation && existingConversation.id) {
       conversation_id = existingConversation.id;
@@ -344,7 +344,7 @@ const processSlackSlashMessage = async (
       // Save new conversation with correct OpenAI thread ID
       conversation_id = openAIResponseData.thread_id.replace(
         "thread_",
-        "conv_"
+        "conv_",
       );
       const newConversation: NewConversation = {
         id: conversation_id,
@@ -382,14 +382,14 @@ const processSlackSlashMessage = async (
     await postSlashResponseToSlack(
       event.data.response_url.toString(),
       "An error occured wth this message, please contact your adminstrator.",
-      context
+      context,
     );
   }
 };
 
 const processIPLookupMessage = async (
   event: EventGridEvent,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   try {
     const data = event.data as IPLookupMessageEvent;
@@ -409,12 +409,12 @@ const processIPLookupMessage = async (
             headers: {
               "Content-Type": "application/json",
             },
-          }
+          },
         );
 
         if (!ipLookupResponse.ok) {
           throw new Error(
-            `Failed to fetch IP info: ${ipLookupResponse.statusText}`
+            `Failed to fetch IP info: ${ipLookupResponse.statusText}`,
           );
         }
 
@@ -444,7 +444,7 @@ const processIPLookupMessage = async (
         }
 
         context.log(
-          `Parsed IP Info for ${data.contact_id}: ${location_estimate_string}`
+          `Parsed IP Info for ${data.contact_id}: ${location_estimate_string}`,
         );
       } catch (error) {
         context.error(`Error parsing IP location for ${data.contact_id}`);
@@ -462,7 +462,7 @@ const processIPLookupMessage = async (
         if (data.language_raw.includes(",")) {
           if (data.language_raw.split(",")[0].includes(";")) {
             language = languageNames.of(
-              data.language_raw.split(",")[0].split(";")[0]
+              data.language_raw.split(",")[0].split(";")[0],
             );
           } else {
             language = languageNames.of(data.language_raw.split(",")[0]);
@@ -496,7 +496,7 @@ const processIPLookupMessage = async (
     await postSlashResponseToSlack(
       event.data.response_url.toString(),
       "An error occured wth this message, please contact your adminstrator.",
-      context
+      context,
     );
   }
 };
@@ -508,7 +508,7 @@ const postBotResponseToSlack = async (
     thread_ts: string;
   },
   slack_bot_token: string,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   return await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
@@ -528,7 +528,7 @@ const postBotResponseToSlack = async (
 const postSlashResponseToSlack = async (
   response_url: string,
   text: string,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   return await fetch(response_url, {
     method: "POST",
@@ -551,7 +551,7 @@ const postSlashResponseToSlack = async (
 const getUserFromSlack = async (
   user_id: string,
   slack_bot_token: string,
-  context: InvocationContext
+  context: InvocationContext,
 ) => {
   return await fetch("https://slack.com/api/users.info", {
     method: "POST",
@@ -565,7 +565,7 @@ const getUserFromSlack = async (
     .then(async (response: UsersInfoResponse) =>
       response.ok && response.user
         ? response.user
-        : Promise.reject(response.error)
+        : Promise.reject(response.error),
     )
     .catch((error) => {
       context.log(error);
@@ -578,7 +578,7 @@ const checkGetContactID = async (
   slack_name: string,
   slack_email: string,
   slack_phone: string,
-  organisation_id: string
+  organisation_id: string,
 ) => {
   // First check if there is an existing contact and conversation
   let contact_id: string = createID("cont");
@@ -608,7 +608,7 @@ const checkGetContactID = async (
 
 const checkGetConversationUsingSlackThreadID = async (
   thread_ts: string,
-  user_id: string | undefined
+  user_id: string | undefined,
 ): Promise<Conversation> => {
   const conversation = await db
     .selectFrom("conversations")

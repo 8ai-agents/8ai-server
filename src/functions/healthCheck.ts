@@ -4,7 +4,7 @@ import { HttpRequest } from "@azure/functions";
 
 export async function healthCheck(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const result = await db.selectFrom("users").select(["id"]).execute();
@@ -14,7 +14,7 @@ export async function healthCheck(
       context.error("HEALTH_CHECK FAILED - No Users Found");
       return { status: 500, body: "8ai API Server Unhealthy - No Users Found" };
     }
-  } catch (error) {
+  } catch {
     context.error("HEALTH_CHECK FAILED - Database is not available");
     return {
       status: 500,

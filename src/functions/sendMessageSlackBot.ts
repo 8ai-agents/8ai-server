@@ -4,7 +4,8 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { EnvelopedEvent, GenericMessageEvent } from "@slack/bolt";
+import { EnvelopedEvent } from "@slack/bolt";
+import { GenericMessageEvent } from "@slack/types";
 import {
   AzureKeyCredential,
   EventGridPublisherClient,
@@ -15,7 +16,7 @@ import { db } from "../DatabaseController";
 
 export async function sendMessageSlackBot(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     // Process Message
@@ -59,8 +60,8 @@ export async function sendMessageSlackBot(
 
       context.log(
         `Processing message from SlackBot: ${JSON.stringify(
-          messageRequest.event
-        )}`
+          messageRequest.event,
+        )}`,
       );
 
       // Message is a Slack Message and is not sent by a bot
@@ -88,25 +89,25 @@ export async function sendMessageSlackBot(
       const eventGridClient = new EventGridPublisherClient(
         topicEndpoint,
         "EventGrid",
-        new AzureKeyCredential(topicKey)
+        new AzureKeyCredential(topicKey),
       );
 
       try {
         await eventGridClient.send(eventPayload);
         context.log(
-          `Published message from SlackBot on event queue: ${messageRequest.event.text}`
+          `Published message from SlackBot on event queue: ${messageRequest.event.text}`,
         );
         return {
           status: 200,
         };
-      } catch (error) {
+      } catch {
         return {
           status: 500,
         };
       }
     } else {
       context.log(
-        `Skipped message from SlackBot: ${JSON.stringify(messageRequest.event)}`
+        `Skipped message from SlackBot: ${JSON.stringify(messageRequest.event)}`,
       );
     }
   } catch (e) {

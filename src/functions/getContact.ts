@@ -12,7 +12,7 @@ import { checkUserIsAdmin } from "../Utils";
 
 export async function getContact(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   let email;
   try {

@@ -10,7 +10,7 @@ import { ContactResponse } from "../models/ContactResponse";
 
 export async function updateContactDetails(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const contactRequest = (await request.json()) as ContactRequest;

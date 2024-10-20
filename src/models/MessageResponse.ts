@@ -22,7 +22,7 @@ export class MessageResponse {
     message: string,
     creator: MessageCreatorType,
     created_at?: number,
-    citations?: MessageResponseCitation[]
+    citations?: MessageResponseCitation[],
   ) {
     this.id = createID("msg");
     this.conversation_id = conversation_id;

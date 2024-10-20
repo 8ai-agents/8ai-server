@@ -11,7 +11,7 @@ import { ContactMetadataResponse } from "../models/ContactMetadataResponse";
 
 export async function getContactMetadata(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   let email;
   try {

@@ -10,7 +10,7 @@ import { authenticateRequest } from "../AuthController";
 
 export async function getMyUserProfile(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   let email: string;
   try {

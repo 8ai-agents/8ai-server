@@ -17,7 +17,7 @@ export class ConversationsResponse {
   constructor(
     thread_id: string,
     contact_name: string,
-    organisation_id: string
+    organisation_id: string,
   ) {
     this.id = thread_id.replace("thread_", "conv_");
     this.organisation_id = organisation_id;
@@ -25,7 +25,8 @@ export class ConversationsResponse {
     this.has_contact_details = false;
     this.created_at = Date.now();
     this.last_message_at = Date.now();
-    (this.status = ConversationStatusType.DRAFT), (this.summary = "");
+    this.status = ConversationStatusType.DRAFT;
+    this.summary = "";
     this.sentiment = 0;
     this.channel = ConversationChannelType.CHAT;
     this.resolution_estimation = undefined;

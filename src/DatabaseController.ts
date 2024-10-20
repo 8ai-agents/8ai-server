@@ -35,7 +35,7 @@ export const db = new Kysely<Database>({
 });
 
 export const getFullConversation = async (
-  conv_id: string
+  conv_id: string,
 ): Promise<ConversationResponse> => {
   const conversationData = await db
     .selectFrom("conversations")
@@ -103,7 +103,7 @@ export const getFullConversation = async (
 };
 
 export const getMessagesForConversation = async (
-  conv_id: string
+  conv_id: string,
 ): Promise<MessageResponse[]> => {
   const data = await db
     .selectFrom("messages")
@@ -123,7 +123,7 @@ export const getMessagesForConversation = async (
 };
 
 export const getOrganisation = async (
-  org_id: string
+  org_id: string,
 ): Promise<OrganisationResponse> => {
   const data = await db
     .selectFrom("organisations")
@@ -180,7 +180,7 @@ export const getUser = async (email: string): Promise<UserResponse> => {
     .then((roles) =>
       roles.map((r) => {
         return { ...r, user_id: user.id };
-      })
+      }),
     );
 
   return user;
@@ -188,7 +188,7 @@ export const getUser = async (email: string): Promise<UserResponse> => {
 
 export const saveMessagesToDatabase = (
   messages: NewMessage[],
-  setInterrupted: boolean
+  setInterrupted: boolean,
 ) => {
   return Promise.all([
     db.insertInto("messages").values(messages).execute(),
@@ -215,7 +215,7 @@ export const saveMessagesToDatabase = (
 
 export const saveMessageResponsesToDatabase = (
   messages: MessageResponse[] | undefined,
-  setInterrupted: boolean
+  setInterrupted: boolean,
 ) => {
   const messagesToSave: NewMessage[] = messages
     ? messages.map((r) => {

@@ -16,7 +16,7 @@ import { getVectorStoreFile } from "../OpenAIHandler";
 
 export async function getOrganisationFile(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   const file_id = request.params.file_id as string;
@@ -68,17 +68,17 @@ export async function getOrganisationFile(
               .where("id", "=", org_id)
               .executeTakeFirst()
               .then((org) => org.assistant_id),
-            file.openai_id
+            file.openai_id,
           );
           training_status =
             openaiFile.status === "in_progress"
               ? OrganisationFileTrainingStatuses.IN_PROGRESS
               : openaiFile.status === "completed"
-              ? OrganisationFileTrainingStatuses.ACTIVE
-              : OrganisationFileTrainingStatuses.ERROR;
-        } catch (e) {
+                ? OrganisationFileTrainingStatuses.ACTIVE
+                : OrganisationFileTrainingStatuses.ERROR;
+        } catch {
           context.error(
-            `Error getting OpenAI file ${file.openai_id}. Deleting`
+            `Error getting OpenAI file ${file.openai_id}. Deleting`,
           );
           await db
             .updateTable("organisation_files")

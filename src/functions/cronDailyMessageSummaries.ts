@@ -13,7 +13,7 @@ import { ConversationsResponse } from "../models/ConversationsResponse";
 
 export async function cronDailyMessageSummaries(
   myTimer: Timer,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<void> {
   context.log("Sending Daily Message Summaries");
 
@@ -24,7 +24,7 @@ export async function cronDailyMessageSummaries(
     .leftJoin(
       "notification_settings",
       "users.id",
-      "notification_settings.user_id"
+      "notification_settings.user_id",
     )
     .leftJoin("user_roles", "user_roles.user_id", "users.id")
     .select([
@@ -38,7 +38,7 @@ export async function cronDailyMessageSummaries(
     .where(
       "notification_settings.type",
       "=",
-      NotificationSettingsType.DAILY_SUMMARY
+      NotificationSettingsType.DAILY_SUMMARY,
     )
     .where("notification_settings.enabled", "=", true)
     .execute();
@@ -79,25 +79,25 @@ export async function cronDailyMessageSummaries(
         await Promise.all(
           allConversationIDs.map((c) => {
             return getFullConversation(c.id);
-          })
+          }),
         )
       ).filter((c) => c.messages?.length > 0);
 
       if (fullConversations.length > 0) {
         context.log(
-          `Sending Daily Message Summaries - sending orgId: ${orgId}`
+          `Sending Daily Message Summaries - sending orgId: ${orgId}`,
         );
         await sendDailySummary(
           allOrgIDNameMap[orgId],
           fullConversations,
           users,
-          context
+          context,
         );
         context.log(`Sending Daily Message Summaries - sent orgId: ${orgId}`);
       }
     } catch (e) {
       context.error(
-        `Sending Daily Message Summaries - Error sending daily summary to org ${orgId}} - ${e}`
+        `Sending Daily Message Summaries - Error sending daily summary to org ${orgId}} - ${e}`,
       );
     }
   }
@@ -154,11 +154,11 @@ export async function cronDailyMessageSummaries(
       allMessages,
       superAdmins,
       organisations,
-      context
+      context,
     );
   } catch (e) {
     context.error(
-      `Sending Daily Message Summaries - Error sending daily summary to super admins - ${e}`
+      `Sending Daily Message Summaries - Error sending daily summary to super admins - ${e}`,
     );
   }
 }

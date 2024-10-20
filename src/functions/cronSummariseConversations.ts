@@ -15,7 +15,7 @@ import { AzureOpenAI } from "openai";
 
 export async function cronSummariseConversations(
   myTimer: Timer,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<void> {
   const organisationsAssistants = await db
     .selectFrom("organisations")
@@ -29,14 +29,14 @@ export async function cronSummariseConversations(
       w.or([
         w("last_summarisation_at", "is", null),
         w("last_summarisation_at", "<", w.ref("last_message_at")),
-      ])
+      ]),
     )
     .execute();
 
   const openai = createAzureOpenAIClient();
   const sentimentClient = new TextAnalysisClient(
     "https://8ai-conversation-summarisation.cognitiveservices.azure.com/",
-    new AzureKeyCredential(process.env.AZURE_COGNITIVE_SERVICE_KEY)
+    new AzureKeyCredential(process.env.AZURE_COGNITIVE_SERVICE_KEY),
   );
 
   context.log(`Summarising ${allConversationIDs.length} Conversations`);
@@ -45,7 +45,7 @@ export async function cronSummariseConversations(
       context.log(`Summarising Conversation ${conv_id}`);
       const fullConversation = await getFullConversation(conv_id);
       const organisation = organisationsAssistants.find(
-        (o) => o.id === fullConversation.organisation_id
+        (o) => o.id === fullConversation.organisation_id,
       );
 
       const result = await Promise.all([
@@ -53,7 +53,7 @@ export async function cronSummariseConversations(
           conv_id,
           organisation.assistant_id,
           openai,
-          context
+          context,
         ),
         processSentiment(fullConversation, sentimentClient, context),
       ]);
@@ -65,7 +65,7 @@ export async function cronSummariseConversations(
         conv_id,
         organisation.assistant_id,
         openai,
-        context
+        context,
       );
 
       await db
@@ -89,8 +89,8 @@ export async function cronSummariseConversations(
     } catch (error: unknown) {
       context.error(
         `Error Summarising Conversation ${conv_id} - ${JSON.stringify(
-          (error as Error).message
-        )}`
+          (error as Error).message,
+        )}`,
       );
     }
   }
@@ -100,7 +100,7 @@ const processSummarisation = async (
   conv_id: string,
   assistant_id: string,
   openai: AzureOpenAI,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<string> => {
   try {
     // Summarise
@@ -117,7 +117,7 @@ const processSummarisation = async (
       {
         assistant_id,
       },
-      { pollIntervalMs: 500 }
+      { pollIntervalMs: 500 },
     );
 
     if (run.status === "completed") {
@@ -125,14 +125,14 @@ const processSummarisation = async (
         limit: 1,
       });
       const content = messages.data[0].content.find(
-        (c) => c.type === "text"
+        (c) => c.type === "text",
       ) as TextContentBlock;
       return content.text.value;
     } else {
       context.error(run.status);
       if (run.last_error) {
         context.error(
-          `Summarise content - last error: ${run.last_error.code}: ${run.last_error.message}`
+          `Summarise content - last error: ${run.last_error.code}: ${run.last_error.message}`,
         );
       }
       return "Can't summarise this conversation at the moment.";
@@ -141,8 +141,8 @@ const processSummarisation = async (
     const err = error as Error;
     context.error(
       `Summarising Conversation Error ${conv_id} - ${JSON.stringify(
-        err.message
-      )}`
+        err.message,
+      )}`,
     );
     return "Can't summarise this conversation at the moment.";
   }
@@ -151,7 +151,7 @@ const processSummarisation = async (
 const processSentiment = async (
   conversation: ConversationResponse,
   sentimentClient: TextAnalysisClient,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<number | undefined> => {
   try {
     // Messages ordered by most recent desc
@@ -162,11 +162,11 @@ const processSentiment = async (
 
     const results: SentimentAnalysisResult[] = await sentimentClient.analyze(
       "SentimentAnalysis",
-      orderedMessages.map((m) => m.message)
+      orderedMessages.map((m) => m.message),
     );
 
     const successResults = results.filter(
-      (r) => r.error === undefined
+      (r) => r.error === undefined,
     ) as SentimentAnalysisSuccessResult[];
 
     // Int where negative means more is negative than positive, prioritises negative sentiment and more recent messages
@@ -174,7 +174,7 @@ const processSentiment = async (
       .map(
         (r, i) =>
           (r.confidenceScores.positive + r.confidenceScores.negative * -2) *
-          (4 / (i + 4))
+          (4 / (i + 4)),
       )
       .reduce((a, b) => a + b, 0);
 
@@ -184,7 +184,7 @@ const processSentiment = async (
     ) {
       // Send warning
       context.log(
-        `Sending Negative Sentiment Warning for Conversation ${conversation.id}`
+        `Sending Negative Sentiment Warning for Conversation ${conversation.id}`,
       );
       conversation.sentiment = result;
       await sendNegativeSentimentWarning(conversation, context);
@@ -194,7 +194,7 @@ const processSentiment = async (
     context.error(
       `Error getting NPS Sentiment for Conversation ${
         conversation.id
-      } - ${JSON.stringify((error as Error).message)}`
+      } - ${JSON.stringify((error as Error).message)}`,
     );
     return undefined;
   }
@@ -204,7 +204,7 @@ const processResultionAnalysis = async (
   conv_id: string,
   assistant_id: string,
   openai: AzureOpenAI,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<number | undefined> => {
   try {
     const thread_id = conv_id.replace("conv_", "thread_");
@@ -220,7 +220,7 @@ const processResultionAnalysis = async (
       {
         assistant_id,
       },
-      { pollIntervalMs: 500 }
+      { pollIntervalMs: 500 },
     );
 
     if (run.status === "completed") {
@@ -228,14 +228,14 @@ const processResultionAnalysis = async (
         limit: 1,
       });
       const content = messages.data[0].content.find(
-        (c) => c.type === "text"
+        (c) => c.type === "text",
       ) as TextContentBlock;
       return parseInt(content.text.value);
     } else {
       context.error(run.status);
       if (run.last_error) {
         context.error(
-          `Resolution analysis - last error: ${run.last_error.code}: ${run.last_error.message}`
+          `Resolution analysis - last error: ${run.last_error.code}: ${run.last_error.message}`,
         );
       }
       return undefined;
@@ -243,7 +243,7 @@ const processResultionAnalysis = async (
   } catch (error: unknown) {
     const err = error as Error;
     context.error(
-      `Resolution analysis Error ${conv_id} - ${JSON.stringify(err.message)}`
+      `Resolution analysis Error ${conv_id} - ${JSON.stringify(err.message)}`,
     );
     return undefined;
   }

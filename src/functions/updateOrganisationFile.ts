@@ -17,7 +17,7 @@ import { updateFile } from "../OpenAIHandler";
 
 export async function updateOrganisationFile(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {
@@ -65,7 +65,7 @@ export async function updateOrganisationFile(
       .execute();
     if (
       existingURls.some(
-        (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase()
+        (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase(),
       )
     ) {
       return {
@@ -73,7 +73,7 @@ export async function updateOrganisationFile(
         jsonBody: {
           error: `There is another file ${
             existingURls.find(
-              (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase()
+              (f) => f.url.toLowerCase() === fileRequest.url.toLowerCase(),
             ).name
           } already with this URL`,
         },
@@ -82,7 +82,7 @@ export async function updateOrganisationFile(
   }
 
   context.log(
-    `Update Organisation File for ${org_id} ${existingFileToUpdate.id}`
+    `Update Organisation File for ${org_id} ${existingFileToUpdate.id}`,
   );
 
   existingFileToUpdate.updated_at = Date.now();
@@ -107,7 +107,7 @@ export async function updateOrganisationFile(
         org_id,
         organisation_name,
         undefined,
-        context
+        context,
       );
       training_status = OrganisationFileTrainingStatuses.IN_PROGRESS;
     } catch (e) {

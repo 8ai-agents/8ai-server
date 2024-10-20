@@ -17,7 +17,7 @@ import { UserResponse } from "../models/UserReponse";
 
 export async function createUser(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const organisation_id = request.params.organisation_id;
   try {

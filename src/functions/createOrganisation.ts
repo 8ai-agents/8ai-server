@@ -13,7 +13,7 @@ import { createAssistant } from "../OpenAIHandler";
 
 export async function createOrganisation(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const email = await authenticateRequest(request);
@@ -64,7 +64,7 @@ export async function createOrganisation(
             role: UserRoleType.SUPER_ADMIN,
             active: true,
           }))
-          .flat()
+          .flat(),
       )
       .execute();
 
@@ -74,7 +74,7 @@ export async function createOrganisation(
       try {
         const assistant_id = await createAssistant(
           organisationRequest.name,
-          context
+          context,
         );
         // save assistant ID to org
         await db

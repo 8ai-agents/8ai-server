@@ -2,7 +2,7 @@ import { HttpRequest } from "@azure/functions";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 export const authenticateRequest = async (
-  request: HttpRequest
+  request: HttpRequest,
 ): Promise<string> => {
   const authHeader = request.headers.get("authorization");
 
@@ -19,7 +19,7 @@ export const authenticateRequest = async (
   const token = tokenParts[1];
 
   const JWKS = createRemoteJWKSet(
-    new URL("https://8ai.au.auth0.com/.well-known/jwks.json")
+    new URL("https://8ai.au.auth0.com/.well-known/jwks.json"),
   );
 
   const { payload } = await jwtVerify(token, JWKS, {

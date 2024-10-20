@@ -13,7 +13,7 @@ import { checkUserIsAdmin } from "../Utils";
 export async function getConversations(
   request: HttpRequest,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {

@@ -8,7 +8,7 @@ import { getMessagesForConversation } from "../DatabaseController";
 
 export async function getConversationMessages(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const conv_id = request.params.conv_id as string;
   if (!conv_id) {

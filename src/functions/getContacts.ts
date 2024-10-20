@@ -11,7 +11,7 @@ import { checkUserIsAdmin } from "../Utils";
 
 export async function getContacts(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {

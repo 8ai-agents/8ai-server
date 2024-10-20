@@ -11,7 +11,7 @@ import { UserResponse } from "../models/UserReponse";
 
 export async function getUsers(
   request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   const org_id = request.params.org_id as string;
   if (!org_id) {
@@ -62,7 +62,7 @@ export async function getUsers(
                 ],
               };
             })
-          : []
+          : [],
       );
     return { status: 200, jsonBody };
   } catch {
