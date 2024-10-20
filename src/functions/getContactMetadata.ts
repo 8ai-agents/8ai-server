@@ -33,7 +33,18 @@ export async function getContactMetadata(
   const contactData = await db
     .selectFrom("contacts")
     .where("id", "=", cont_id)
-    .selectAll()
+    .select([
+      "id",
+      "browser",
+      "ip",
+      "origin",
+      "location_estimate_string",
+      "location_estimate_lat",
+      "location_estimate_lon",
+      "language",
+      "language_raw",
+      "organisation_id",
+    ])
     .executeTakeFirst();
 
   // They need to be an admin of the organisation
@@ -42,8 +53,15 @@ export async function getContactMetadata(
 
   if (contactData) {
     const jsonBody: ContactMetadataResponse = {
-      ...contactData,
       contact_id: contactData.id,
+      browser: contactData.browser,
+      ip: contactData.ip,
+      origin: contactData.origin,
+      location_estimate_string: contactData.location_estimate_string,
+      location_estimate_lat: contactData.location_estimate_lat,
+      location_estimate_lon: contactData.location_estimate_lon,
+      language: contactData.language,
+      language_raw: contactData.language_raw,
     };
     return { status: 200, jsonBody };
   } else {
