@@ -78,10 +78,6 @@ export async function sendMessage(
       );
       messageRequest.conversation_id = newConversation.id;
 
-      context.log(
-        JSON.stringify(Object.fromEntries(request.headers.entries()))
-      );
-
       let ip = request.headers.get("X-Forwarded-For");
       if (ip.includes(":")) {
         ip = ip.split(":")[0];
@@ -94,7 +90,7 @@ export async function sendMessage(
           organisation_id: messageRequest.organisation_id,
           browser: request.headers.get("user-agent"),
           ip,
-          origin: request.headers.get("origin"),
+          origin: messageRequest.referrer,
           language_raw: request.headers.get("accept-language"),
         } as NewContact)
         .execute();

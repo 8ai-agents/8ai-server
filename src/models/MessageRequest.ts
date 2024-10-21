@@ -5,4 +5,5 @@ export class MessageRequest {
   organisation_id: string | undefined;
   message: string;
   creator: MessageCreatorType = MessageCreatorType.CONTACT;
+  referrer: string | null;
 }
