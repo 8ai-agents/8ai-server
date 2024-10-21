@@ -90,7 +90,10 @@ export async function sendMessage(
           organisation_id: messageRequest.organisation_id,
           browser: request.headers.get("user-agent"),
           ip,
-          origin: messageRequest.referrer,
+          origin:
+            messageRequest.referrer === "https://static.8ai.co.nz" // We don't save it if it's the static site
+              ? undefined
+              : messageRequest.referrer,
           language_raw: request.headers.get("accept-language"),
         } as NewContact)
         .execute();
