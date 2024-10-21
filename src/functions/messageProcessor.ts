@@ -183,6 +183,7 @@ const processSlackBotMessage = async (
             creator: MessageCreatorType.CONTACT,
             referrer: `Slackbot-${channelName}`,
           },
+          data.organisation_id,
           assistant_id,
           system_prompt,
           contact_id,
@@ -192,6 +193,7 @@ const processSlackBotMessage = async (
       } else {
         // We are starting a new one
         const openAIResponseData = await handleNewMessageForOpenAI(
+          data.organisation_id,
           assistant_id,
           system_prompt,
           data.message.toString(),
@@ -302,6 +304,7 @@ const processSlackSlashMessage = async (
       .executeTakeFirst();
 
     const openAIResponseData = await handleNewMessageForOpenAI(
+      data.organisation_id,
       assistant_id,
       system_prompt,
       data.message.toString(),

@@ -14,7 +14,7 @@ import { db, getFullConversation } from "./DatabaseController";
 import { Message } from "openai/resources/beta/threads/messages";
 import { Assistant, AssistantTool } from "openai/resources/beta/assistants";
 import { Run } from "openai/resources/beta/threads/runs/runs";
-import { sendContactDetailsAlert } from "./OneSignalHandler";
+import { sendAppErrorAlert, sendContactDetailsAlert } from "./OneSignalHandler";
 import { OrganisationFileRequest } from "./models/OrganisationFileRequest";
 import { createID } from "./Utils";
 import { VectorStoreFile } from "openai/resources/beta/vector-stores/files";
@@ -40,10 +40,11 @@ export const createConversationForOpenAI = async (): Promise<string> => {
 
 export const handleMessageForOpenAI = async (
   messageRequest: MessageRequest,
+  organisation_id: string,
   assistant_id: string,
   system_prompt: string,
   contact_id: string,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<MessageResponse[]> => {
   const openai = createAzureOpenAIClient();
   const thread_id = messageRequest.conversation_id.replace("conv_", "thread_");
@@ -58,24 +59,26 @@ export const handleMessageForOpenAI = async (
       assistant_id,
       instructions: system_prompt,
     },
-    { pollIntervalMs: 1000 },
+    { pollIntervalMs: 1000 }
   );
 
   return await handleThreadRun(
+    organisation_id,
     thread_id,
     run,
     openai,
     context,
     messageRequest.conversation_id,
-    contact_id,
+    contact_id
   );
 };
 
 export const handleSingleMessageForOpenAI = async (
+  organisation_id: string,
   assistant_id: string,
   system_prompt: string,
   message: string,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<{ thread_id: string; response: MessageResponse[] }> => {
   const openai = createAzureOpenAIClient();
   const run = await openai.beta.threads.createAndRunPoll(
@@ -91,18 +94,19 @@ export const handleSingleMessageForOpenAI = async (
         ],
       },
     },
-    { pollIntervalMs: 300 },
+    { pollIntervalMs: 300 }
   );
 
   return {
     thread_id: run.thread_id,
     response: await handleThreadRun(
+      organisation_id,
       run.thread_id,
       run,
       openai,
       context,
       "",
-      undefined,
+      undefined
     ),
   };
 };
@@ -110,7 +114,7 @@ export const handleSingleMessageForOpenAI = async (
 export const processOpenAIMessage = async (
   message: Message,
   conversation_id: string,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<MessageResponse> => {
   if (message.content[0].type === "text") {
     let citations: MessageResponseCitation[] | undefined = undefined;
@@ -120,7 +124,7 @@ export const processOpenAIMessage = async (
       for (const annotation of message.content[0].text.annotations) {
         if (annotation.type === "file_citation" && annotation.file_citation) {
           context.log(
-            `File citation found for file id ${annotation.file_citation.file_id}`,
+            `File citation found for file id ${annotation.file_citation.file_id}`
           );
           try {
             const { name, url } = await db
@@ -133,13 +137,13 @@ export const processOpenAIMessage = async (
               citations = [];
             }
             const existingCitation = citations.find(
-              (c) => c.url === url && c.name === name,
+              (c) => c.url === url && c.name === name
             );
             if (existingCitation) {
               // citation already exists, don't add it again
               messageTextContent = messageTextContent.replace(
                 annotation.text,
-                `【${existingCitation.id}】`,
+                `【${existingCitation.id}】`
               );
             } else {
               const citation_id = citations.length + 1;
@@ -150,17 +154,17 @@ export const processOpenAIMessage = async (
               });
               messageTextContent = messageTextContent.replace(
                 annotation.text,
-                `【${citation_id}】`,
+                `【${citation_id}】`
               );
             }
           } catch {
             context.log(
-              `Couldn't find file URL for ${annotation.file_citation.file_id}`,
+              `Couldn't find file URL for ${annotation.file_citation.file_id}`
             );
             // Can't find the file
             messageTextContent = messageTextContent.replace(
               annotation.text,
-              "",
+              ""
             );
           }
         }
@@ -171,14 +175,14 @@ export const processOpenAIMessage = async (
       messageTextContent,
       MessageCreatorType.AGENT,
       message.created_at * 1000,
-      citations,
+      citations
     );
   }
 };
 
 export const createAssistant = async (
   organisation_name: string,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
 
@@ -207,7 +211,7 @@ export const updateAssistantFile = async (
   organisation_name: string,
   assistant_id: string,
   newFiles: OrganisationFileRequest[],
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
 
@@ -223,10 +227,10 @@ export const updateAssistantFile = async (
             vector_store_id,
             {
               limit: 100,
-            },
+            }
           );
           context.log(
-            `Deleting files for vector store ${vector_store_id} - deleting ${files.data.length} files`,
+            `Deleting files for vector store ${vector_store_id} - deleting ${files.data.length} files`
           );
           while (files.data.length > 0) {
             for (const file of files.data) {
@@ -244,7 +248,7 @@ export const updateAssistantFile = async (
     } else {
       // We need to create a new assistant
       context.log(
-        `Creating new assistant for organisation ${organisation_name}`,
+        `Creating new assistant for organisation ${organisation_name}`
       );
       assistant = await openai.beta.assistants.create({
         name: `8ai-${organisation_name
@@ -269,7 +273,7 @@ export const updateAssistantFile = async (
     let i = 0;
     // Can only take 500 files here
     context.log(
-      `Creating ${newFiles.length} new files for organisation ${organisation_name}`,
+      `Creating ${newFiles.length} new files for organisation ${organisation_name}`
     );
     for (const newFile of newFiles.slice(0, 500)) {
       try {
@@ -284,16 +288,16 @@ export const updateAssistantFile = async (
         newOrganisationFiles.push(newDBFile);
         i++;
         context.log(
-          `Created file ${i} of ${newFiles.length} ${newFile.name} for organisation ${organisation_name}`,
+          `Created file ${i} of ${newFiles.length} ${newFile.name} for organisation ${organisation_name}`
         );
       } catch {
         context.error(
-          `Error creating file ${i} of ${newFiles.length} ${newFile.name} for organisation ${organisation_name}`,
+          `Error creating file ${i} of ${newFiles.length} ${newFile.name} for organisation ${organisation_name}`
         );
       }
     }
     context.log(
-      `Created ${newFiles.length} files for organisation ${organisation_name}`,
+      `Created ${newFiles.length} files for organisation ${organisation_name}`
     );
 
     // create a new vector store with existing files
@@ -302,7 +306,7 @@ export const updateAssistantFile = async (
       file_ids: newOrganisationFiles.slice(0, 100).map((f) => f.id),
     });
     context.log(
-      `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`,
+      `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`
     );
 
     if (newOrganisationFiles.length > 100) {
@@ -314,7 +318,7 @@ export const updateAssistantFile = async (
       }
     }
     context.log(
-      `Attached files to new vector store ${newVectorStore.id} for organisation ${organisation_name}`,
+      `Attached files to new vector store ${newVectorStore.id} for organisation ${organisation_name}`
     );
 
     await openai.beta.assistants.update(assistant.id, {
@@ -326,7 +330,7 @@ export const updateAssistantFile = async (
       },
     });
     context.log(
-      `Updated assistant ${assistant.id} for organisation ${organisation_name}`,
+      `Updated assistant ${assistant.id} for organisation ${organisation_name}`
     );
     await db
       .deleteFrom("organisation_files")
@@ -337,7 +341,7 @@ export const updateAssistantFile = async (
       .values(newOrganisationFiles)
       .execute();
     context.log(
-      `Completed assistant update ${assistant.id} organisation ${organisation_name}`,
+      `Completed assistant update ${assistant.id} organisation ${organisation_name}`
     );
   } catch (e) {
     throw `Failed to update AI assistant ${e.message}`;
@@ -350,21 +354,27 @@ type SaveContactDetailsPayload = {
   phone?: string;
 };
 
+type ReportAppIssuePayload = {
+  issue_description: string;
+  contact_details?: string;
+};
+
 export const handleThreadRun = async (
+  organisation_id: string,
   thread_id: string,
   run: Run,
   openai: AzureOpenAI,
   context: InvocationContext,
-  conversation_id: string = "",
-  contact_id: string | undefined,
+  conversation_id: string,
+  contact_id: string | undefined
 ) => {
   const messageResponse: MessageResponse[] = [];
 
   if (run.status === "requires_action") {
     context.log(
       `function call detected: ${JSON.stringify(
-        run.required_action.submit_tool_outputs,
-      )}`,
+        run.required_action.submit_tool_outputs
+      )}`
     );
 
     const tool_outputs = run.required_action.submit_tool_outputs.tool_calls.map(
@@ -375,15 +385,25 @@ export const handleThreadRun = async (
             contact_id,
             tc.function.arguments,
             conversation_id,
-            context,
+            context
           );
           context.log(`Save Contact Details: ${output}`);
+        }
+        if (tc.function.name === "report_application_issue") {
+          output = await reportAppIssue(
+            organisation_id,
+            contact_id,
+            tc.function.arguments,
+            conversation_id,
+            context
+          );
+          context.log(`Report application issue: ${output}`);
         }
         return {
           tool_call_id: tc.id,
           output,
         };
-      },
+      }
     );
 
     run = await openai.beta.threads.runs.submitToolOutputsAndPoll(
@@ -392,7 +412,7 @@ export const handleThreadRun = async (
       {
         tool_outputs: await Promise.all(tool_outputs),
       },
-      { pollIntervalMs: 1000 },
+      { pollIntervalMs: 1000 }
     );
   }
 
@@ -402,12 +422,12 @@ export const handleThreadRun = async (
     });
     for (const message of messages.data.slice(
       0,
-      messages.data.findIndex((m) => m.role === "user"),
+      messages.data.findIndex((m) => m.role === "user")
     )) {
       // Gets all messages from the assistant since last user message
       if (message.content[0].type === "text") {
         messageResponse.push(
-          await processOpenAIMessage(message, conversation_id, context),
+          await processOpenAIMessage(message, conversation_id, context)
         );
       }
     }
@@ -415,7 +435,7 @@ export const handleThreadRun = async (
     context.error(run.status);
     if (run.last_error) {
       context.error(
-        `Last error: ${run.last_error.code}: ${run.last_error.message}`,
+        `Last error: ${run.last_error.code}: ${run.last_error.message}`
       );
     }
     throw new Error("OpenAI request failed");
@@ -428,7 +448,7 @@ export const createFile = async (
   newFile: NewOrganisationFile,
   assistant_id: string,
   openai: AzureOpenAI | undefined,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   if (!openai) {
     openai = createAzureOpenAIClient();
@@ -438,18 +458,18 @@ export const createFile = async (
     const newOpenAIFile = await openai.files.create({
       file: await toFile(
         Buffer.from(JSON.stringify(content)),
-        `${assistant_id}-${newFile.id}.json`,
+        `${assistant_id}-${newFile.id}.json`
       ),
       purpose: "assistants",
     });
     newFile.openai_id = newOpenAIFile.id;
     context.log(
-      `Published file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id} to OpenAI`,
+      `Published file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id} to OpenAI`
     );
     return newFile;
   } catch {
     context.error(
-      `Error creating file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id}`,
+      `Error creating file ${newFile.id} ${newFile.name} for organisation ${newFile.organisation_id}`
     );
   }
 };
@@ -460,7 +480,7 @@ export const createFilesAndAttachToVectorStore = async (
   organisation_id: string,
   organisation_name: string,
   openai: AzureOpenAI | undefined,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   if (!openai) {
     openai = createAzureOpenAIClient();
@@ -472,7 +492,7 @@ export const createFilesAndAttachToVectorStore = async (
       context.log(
         `Created file ${
           newFiles.findIndex((f) => f.id === newFile.id) + 1
-        } of ${newFiles.length}`,
+        } of ${newFiles.length}`
       );
     } catch {
       context.error(`Error creating file ${newFile.id} ${newFile.name}`);
@@ -485,7 +505,7 @@ export const createFilesAndAttachToVectorStore = async (
     openai,
     organisation_name,
     organisation_id,
-    context,
+    context
   );
   return newFiles;
 };
@@ -496,7 +516,7 @@ export const createFileAndAttachToVectorStore = async (
   organisation_id: string,
   organisation_name: string,
   openai: AzureOpenAI | undefined,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   if (!openai) {
     openai = createAzureOpenAIClient();
@@ -510,7 +530,7 @@ export const createFileAndAttachToVectorStore = async (
     openai,
     organisation_name,
     organisation_id,
-    context,
+    context
   );
   return newFile;
 };
@@ -521,7 +541,7 @@ export const updateFile = async (
   organisation_id: string,
   organisation_name: string,
   openai: AzureOpenAI | undefined,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   if (!openai) {
     openai = createAzureOpenAIClient();
@@ -534,7 +554,7 @@ export const updateFile = async (
     } catch (e) {
       // We couldn't delete it, that's okay - we can move on and create a new one
       context.warn(
-        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`,
+        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
       );
       context.warn(JSON.stringify(e));
     }
@@ -546,7 +566,7 @@ export const updateFile = async (
     organisation_id,
     organisation_name,
     openai,
-    context,
+    context
   );
 };
 
@@ -556,7 +576,7 @@ export const updateFiles = async (
   organisation_id: string,
   organisation_name: string,
   openai: AzureOpenAI | undefined,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   if (!openai) {
     openai = createAzureOpenAIClient();
@@ -570,7 +590,7 @@ export const updateFiles = async (
     } catch (e) {
       // We couldn't delete it, that's okay - we can move on and create a new one
       context.warn(
-        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`,
+        `Error deleting file with openai ID ${updateFile.openai_id} (internal ID ${updateFile.id})`
       );
       context.warn(JSON.stringify(e));
     }
@@ -583,20 +603,20 @@ export const updateFiles = async (
     organisation_id,
     organisation_name,
     openai,
-    context,
+    context
   );
 };
 
 export const getVectorStoreFile = async (
   assistant_id: string,
-  openAIFileID: string,
+  openAIFileID: string
 ): Promise<VectorStoreFile> => {
   const openai = createAzureOpenAIClient();
   const assistant = await openai.beta.assistants.retrieve(assistant_id);
   if (assistant.tool_resources.file_search.vector_store_ids.length > 0) {
     return openai.beta.vectorStores.files.retrieve(
       assistant.tool_resources.file_search.vector_store_ids[0],
-      openAIFileID,
+      openAIFileID
     );
   } else {
     throw new Error("No vector store found");
@@ -605,7 +625,7 @@ export const getVectorStoreFile = async (
 
 export const resetVectorStoreAndFiles = async (
   assistant_id: string,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   const openai = createAzureOpenAIClient();
   const assistant = await openai.beta.assistants.retrieve(assistant_id);
@@ -617,7 +637,7 @@ export const resetVectorStoreAndFiles = async (
         limit: 100,
       });
       context.log(
-        `Deleting files for vector store ${vector_store_id} - deleting ${files.data.length} files`,
+        `Deleting files for vector store ${vector_store_id} - deleting ${files.data.length} files`
       );
       while (files.data.length > 0) {
         for (const file of files.data) {
@@ -643,7 +663,7 @@ const saveContactDetails = async (
   contact_id: string,
   data: string,
   conversation_id,
-  context,
+  context
 ): Promise<string> => {
   try {
     const details = JSON.parse(data) as SaveContactDetailsPayload;
@@ -684,13 +704,45 @@ const saveContactDetails = async (
       // Send a new contact notification
       await sendContactDetailsAlert(
         await getFullConversation(conversation_id),
-        context,
+        context
       );
     }
 
     return JSON.stringify(details);
   } catch {
-    return "Can't parse details";
+    return "Can't parse contact details function";
+  }
+};
+
+const reportAppIssue = async (
+  organisation_id: string,
+  contact_id: string | undefined,
+  data: string,
+  conversation_id,
+  context
+): Promise<string> => {
+  try {
+    const details = JSON.parse(data) as ReportAppIssuePayload;
+    context.log(
+      `${
+        contact_id || "Anonymous"
+      } reported application issue during conversation ${conversation_id}: ${
+        details.issue_description
+      }`
+    );
+
+    // Send email notification to admin users
+    await sendAppErrorAlert(
+      organisation_id,
+      conversation_id,
+      details.issue_description,
+      details.contact_details,
+      context
+    );
+
+    return JSON.stringify(details);
+  } catch {
+    return "Can't parse app issue report details";
   }
 };
 
@@ -700,7 +752,7 @@ const attachFileToVectorStore = async (
   openai: AzureOpenAI,
   organisation_name: string,
   organisation_id: string,
-  context: InvocationContext,
+  context: InvocationContext
 ) => {
   try {
     let assistant: Assistant;
@@ -710,7 +762,7 @@ const attachFileToVectorStore = async (
     } else {
       // We need to create a new assistant
       context.log(
-        `Creating new assistant for organisation ${organisation_name}`,
+        `Creating new assistant for organisation ${organisation_name}`
       );
       assistant = await openai.beta.assistants.create({
         name: `8ai-${organisation_name
@@ -741,7 +793,7 @@ const attachFileToVectorStore = async (
         file_ids,
       });
       context.log(
-        `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`,
+        `Created vector store for organisation ${organisation_name} - vector store id: ${newVectorStore.id}`
       );
       vectorStoreID = newVectorStore.id;
       await openai.beta.assistants.update(assistant.id, {
@@ -762,14 +814,14 @@ const attachFileToVectorStore = async (
           });
         } catch {
           context.error(
-            `Error attaching file to vector store ${file_ids} for organisation ${organisation_name}`,
+            `Error attaching file to vector store ${file_ids} for organisation ${organisation_name}`
           );
           // Clean up
           await openai.files.del(file_id);
         }
       });
       context.log(
-        `Attached files to existing vector store ${vectorStoreID} for organisation ${organisation_name}`,
+        `Attached files to existing vector store ${vectorStoreID} for organisation ${organisation_name}`
       );
     }
   } catch {
@@ -814,6 +866,29 @@ const getToolModel = (hasFile: boolean): AssistantTool[] => {
             },
           },
         },
+        {
+          type: "function",
+          function: {
+            name: "report_application_issue",
+            description:
+              "This function should be called when the user reports a major issue or outage with the website or application",
+            parameters: {
+              type: "object",
+              properties: {
+                issue_description: {
+                  type: "string",
+                  description:
+                    "A description of the issue, including what happened and how we can reproduce it",
+                },
+                contact_details: {
+                  type: "string",
+                  description: "How we can get in contact with the user",
+                },
+              },
+              required: ["issue_description"],
+            },
+          },
+        },
       ]
     : [
         {
@@ -838,6 +913,29 @@ const getToolModel = (hasFile: boolean): AssistantTool[] => {
                 },
               },
               required: [],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "report_application_issue",
+            description:
+              "This function should be called when the user reports a major issue or outage with the website or application",
+            parameters: {
+              type: "object",
+              properties: {
+                issue_description: {
+                  type: "string",
+                  description:
+                    "A description of the issue, including what happened and how we can reproduce it",
+                },
+                contact_details: {
+                  type: "string",
+                  description: "How we can get in contact with the user",
+                },
+              },
+              required: ["issue_description"],
             },
           },
         },

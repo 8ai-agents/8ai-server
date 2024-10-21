@@ -79,7 +79,7 @@ export async function sendMessage(
       messageRequest.conversation_id = newConversation.id;
 
       let ip = request.headers.get("X-Forwarded-For");
-      if (ip.includes(":")) {
+      if (ip && ip.includes(":")) {
         ip = ip.split(":")[0];
       }
       // Save to db
@@ -208,6 +208,7 @@ export async function sendMessage(
     } else {
       const responses = await handleMessageForOpenAI(
         messageRequest,
+        organisation_id,
         assistant_id,
         system_prompt,
         contact_id,
