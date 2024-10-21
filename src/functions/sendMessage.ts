@@ -35,7 +35,7 @@ import { IPLookupMessageEvent } from "./messageProcessor";
 
 export async function sendMessage(
   request: HttpRequest,
-  context: InvocationContext,
+  context: InvocationContext
 ): Promise<HttpResponseInit> {
   try {
     const messageRequest = (await request.json()) as MessageRequest;
@@ -74,9 +74,13 @@ export async function sendMessage(
       const newConversation = new ConversationsResponse(
         threadID,
         newContact.name,
-        messageRequest.organisation_id,
+        messageRequest.organisation_id
       );
       messageRequest.conversation_id = newConversation.id;
+
+      context.log(
+        JSON.stringify(Object.fromEntries(request.headers.entries()))
+      );
 
       let ip = request.headers.get("X-Forwarded-For");
       if (ip.includes(":")) {
@@ -117,7 +121,7 @@ export async function sendMessage(
       const eventGridClient = new EventGridPublisherClient(
         topicEndpoint,
         "EventGrid",
-        new AzureKeyCredential(topicKey),
+        new AzureKeyCredential(topicKey)
       );
 
       try {
@@ -142,7 +146,7 @@ export async function sendMessage(
       isNewConversation = true;
     } else {
       context.log(
-        `Processing message for conversation ${messageRequest.conversation_id}`,
+        `Processing message for conversation ${messageRequest.conversation_id}`
       );
     }
 
@@ -158,7 +162,7 @@ export async function sendMessage(
       .innerJoin(
         "organisations",
         "conversations.organisation_id",
-        "organisations.id",
+        "organisations.id"
       )
       .where("conversations.id", "=", messageRequest.conversation_id)
       .select([
@@ -184,7 +188,7 @@ export async function sendMessage(
       ...new MessageResponse(
         messageRequest.conversation_id,
         messageRequest.message,
-        messageRequest.creator,
+        messageRequest.creator
       ),
       created_at: Date.now(),
       user_id,
@@ -193,7 +197,7 @@ export async function sendMessage(
 
     await saveMessagesToDatabase(
       [newMessageRequest],
-      interrupted || messageRequest.creator === "USER",
+      interrupted || messageRequest.creator === "USER"
     );
 
     if (interrupted || messageRequest.creator === "USER") {
@@ -208,7 +212,7 @@ export async function sendMessage(
         assistant_id,
         system_prompt,
         contact_id,
-        context,
+        context
       );
 
       // Save message to database
@@ -219,7 +223,7 @@ export async function sendMessage(
         await sendNewConversationAlert(
           messageRequest.conversation_id,
           organisation_id,
-          context,
+          context
         );
       }
 
